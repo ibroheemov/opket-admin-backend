@@ -5,22 +5,14 @@ import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
 import { config } from './config/env';
 import { connectDB } from './utils/db';
+import bodyParser from "body-parser";
 
 const app = express();
 
-app.use(express.json());
+app.use(bodyParser.json());
 
 // ✅ CORS — MUST be before routes
-app.use(
-    cors({
-        origin: "http://localhost:5173", // React (Vite)
-        credentials: true,              // only if using cookies
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    })
-);
-
-
+app.use(cors());
 
 async function startServer() {
     await connectDB();
