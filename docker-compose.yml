@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: .
+    command: npm start
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env.production
+    restart: always
+    # volumes removed for backend
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
