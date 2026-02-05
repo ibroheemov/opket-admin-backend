@@ -70,6 +70,10 @@ export const getRides = async (req: AuthRequest, res: Response) => {
                 .sort(sort)
                 .skip(skip)
                 .limit(limitNum)
+                .populate({
+                    path: "driverId",
+                    select: "carModel carColor carNumber name phone",
+                })
                 .lean(),
             RideModel.countDocuments(filter),
         ]);

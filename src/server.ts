@@ -1,6 +1,7 @@
 import express from 'express';
 import authRoutes from './routes/auth.routes';
 import ridesRoutes from './routes/ride.routes';
+import driverRoutes from './routes/driver.routes';
 import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
 import { config } from './config/env';
@@ -20,6 +21,7 @@ async function startServer() {
     // routes
     app.use('/auth', authRoutes);
     app.use('/ride', ridesRoutes);
+    app.use('/drivers', driverRoutes);
 
     // protected example route
     app.get('/admin', authenticate, (req, res) => {

@@ -6,7 +6,7 @@ export interface IRide extends Document {
     userId?: string;
     userPhoneNumber?: number;
     userChatId: number;                // Telegram chat id for the user
-    driverId?: string | null;
+    driverId?: mongoose.Schema.Types.ObjectId;
     pickup: { lat: number; lon: number; address?: string };
     dropoff?: { lat: number; lon: number; address?: string };
     status: string | "pending" | "offered" | "accepted" | "arrived" | "waiting_for_user" | "started" | "completed" | "cancelled";
@@ -33,7 +33,7 @@ const rideSchema = new Schema<IRide>({
     userId: String,
     userChatId: Number,
     userPhoneNumber: Number,
-    driverId: { type: String },
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", default: null },
     luggage: { type: Boolean, default: false },
     pickup: {
         lat: Number,
