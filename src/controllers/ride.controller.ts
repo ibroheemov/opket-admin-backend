@@ -74,6 +74,7 @@ export const getRides = async (req: AuthRequest, res: Response) => {
                     path: "driverId",
                     select: "carModel carColor carNumber name phone",
                 })
+                .populate({ path: "statusHistory.driverId", select: "carModel carColor carNumber name phone" })
                 .lean(),
             RideModel.countDocuments(filter),
         ]);

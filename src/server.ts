@@ -2,6 +2,9 @@ import express from 'express';
 import authRoutes from './routes/auth.routes';
 import ridesRoutes from './routes/ride.routes';
 import driverRoutes from './routes/driver.routes';
+import menuRoutes from './routes/menu.routes';
+import foodRoutes from './routes/food.routes';
+import restaurantsRoutes from './routes/restaurants.routes';
 import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
 import { config } from './config/env';
@@ -22,6 +25,9 @@ async function startServer() {
     app.use('/auth', authRoutes);
     app.use('/ride', ridesRoutes);
     app.use('/drivers', driverRoutes);
+    app.use("/menu", menuRoutes);
+    app.use("/food", foodRoutes);
+    app.use("/restaurants", restaurantsRoutes);
 
     // protected example route
     app.get('/admin', authenticate, (req, res) => {
