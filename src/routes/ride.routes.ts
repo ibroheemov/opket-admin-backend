@@ -1,9 +1,9 @@
 import express from "express";
-import { authenticate } from "../middleware/auth.middleware";
 import { getRides } from "../controllers/ride.controller";
+import { requireAuth } from "../middleware/requireAuth";
 
 const router = express.Router();
 
-router.get("/rides-all", authenticate, getRides);
+router.get("/rides-all", requireAuth, getRides);
 
 export default router;

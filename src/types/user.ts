@@ -1,6 +1,6 @@
 export interface User {
-    id: number;
+    id: string;
     phone: string;
     password: string; // hashed
-    role: 'admin';
+    role: 'ADMIN';
 }

@@ -4,15 +4,22 @@ import {
     createRestaurant,
     getRestaurantById,
     updateRestaurant,
+    loginRestaurant,
 } from "../controllers/restaurants.controller";
-import { authenticate } from "../middleware/auth.middleware";
 import { upload } from "../middleware/upload";
+import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
 
+router.get("/login", loginRestaurant);
 router.get("/", listRestaurants);
-router.post("/", authenticate, upload.single("banner"), createRestaurant);
-router.get("/:id", authenticate, getRestaurantById);
-router.patch("/:id", authenticate, upload.single("banner"), updateRestaurant);
+router.post("/", requireAuth, upload.single("banner"), createRestaurant);
+router.get("/:id", requireAuth, getRestaurantById);
+router.patch("/:id",
+    upload.fields([
+        { name: "logo", maxCount: 1 },
+        { name: "banner", maxCount: 1 },
+        { name: "gallery", maxCount: 20 },
+    ]), updateRestaurant);
 
 export default router;

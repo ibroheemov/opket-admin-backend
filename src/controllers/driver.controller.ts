@@ -1,6 +1,7 @@
 // src/controllers/driversController.ts
 import { Request, Response } from "express";
 import { DriverModel } from "../models/DriverModel";
+import { driverStoreRedis } from "../services/driver_redis.service";
 
 export const getDrivers = async (req: Request, res: Response) => {
     try {
@@ -110,5 +111,63 @@ export const updateDriver = async (req: Request, res: Response) => {
     } catch (err: any) {
         console.error("updateDriver error:", err);
         return res.status(400).json({ success: false, message: err?.message ?? "Update failed" });
+    }
+};
+
+export const getOnlineDrivers = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const { lat, lon, radiusKm } = req.query;
+
+        if (!lat || !lon || !radiusKm) {
+            return res.status(400).json({
+                message: "lat, lon and radiusKm are required",
+            });
+        }
+
+        const latitude = Number(lat);
+        const longitude = Number(lon);
+        const radius = Number(radiusKm);
+
+        if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
+            return res.status(400).json({
+                message: "Invalid numeric values",
+            });
+        }
+
+        const drivers = await driverStoreRedis.getDriversInRadius(
+            latitude,
+            longitude,
+            radius
+        );
+
+        return res.json({
+            count: drivers.length,
+            drivers,
+        });
+
+    } catch (error) {
+        console.error("Radius search error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const getAllOnlineDrivers = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const drivers = await driverStoreRedis.getAllGeoDrivers();
+
+        return res.json({
+            count: drivers.length,
+            drivers,
+        });
+
+    } catch (error) {
+        console.error("Radius search error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 };

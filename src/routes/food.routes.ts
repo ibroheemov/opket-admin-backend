@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { authenticate } from "../middleware/auth.middleware";
 
 import {
     listCategories,
@@ -8,13 +7,18 @@ import {
     deleteCategory,
 } from "../controllers/globalCategories.controller";
 import { upload } from "../middleware/upload";
+import { orderFood } from "../controllers/food.controller";
+import { createFoodOrder } from "../controllers/order.controller";
+import { authenticate } from "../middleware/auth.middleware";
+import { requireAuth } from "../middleware/requireAuth";
 
 
 const router = Router();
 
-router.get("/categories", listCategories);
-router.post("/categories", authenticate, upload.single("image"), createCategory);
-router.patch("/categories/:id", authenticate, upload.single("image"), updateCategory);
-router.delete("/categories/:id", authenticate, deleteCategory);
+router.post("/order-food", requireAuth, createFoodOrder);
+router.get("/categories", requireAuth, listCategories);
+router.post("/categories", requireAuth, upload.single("image"), createCategory);
+router.patch("/categories/:id", requireAuth, upload.single("image"), updateCategory);
+router.delete("/categories/:id", requireAuth, deleteCategory);
 
 export default router;

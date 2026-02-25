@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
+import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken';
 import { User } from '../types/user';
+import { signToken } from '../utils/jwt_2';
 
 // ⚠️ Fake user (later replace with DB)
 const adminUser: User = {
-    id: 1,
+    id: '123456',
     phone: '992707255',
     password: bcrypt.hashSync('op#ke$@t_ad$m&in_$hig*hsc0re$', 10),
-    role: 'admin',
+    role: 'ADMIN',
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -26,11 +27,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // 3. Create token
-    const token = jwt.sign(
-        { id: adminUser.id, role: adminUser.role },
-        'SECRET_KEY', // later move to .env
-        { expiresIn: '1h' }
-    );
+    const token = signToken({ id: adminUser.id, role: adminUser.role });
 
     return res.json({
         message: 'Login successful',

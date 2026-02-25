@@ -10,6 +10,8 @@ import cors from "cors";
 import { config } from './config/env';
 import { connectDB } from './utils/db';
 import bodyParser from "body-parser";
+import { adminRouter } from './routes/admin.routes';
+import { connectRedis } from './utils/redisClient';
 
 const app = express();
 
@@ -20,6 +22,7 @@ app.use(cors());
 
 async function startServer() {
     await connectDB();
+    await connectRedis();
 
     // routes
     app.use('/auth', authRoutes);
@@ -28,6 +31,7 @@ async function startServer() {
     app.use("/menu", menuRoutes);
     app.use("/food", foodRoutes);
     app.use("/restaurants", restaurantsRoutes);
+    app.use("/admin", adminRouter);
 
     // protected example route
     app.get('/admin', authenticate, (req, res) => {

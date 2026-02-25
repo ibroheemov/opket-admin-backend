@@ -26,31 +26,32 @@ import {
 } from "../controllers/modifiers.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { upload } from "../middleware/upload";
+import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
 // router.use(authenticate);
 
 // Categories
 router.get("/restaurants/:id/categories", listCategories);
-router.post("/restaurants/:id/categories", authenticate, createCategory);
-router.patch("/categories/:id", authenticate, updateCategory);
-router.delete("/categories/:id", authenticate, deleteCategory);
+router.post("/restaurants/:id/categories", requireAuth, createCategory);
+router.patch("/categories/:id", requireAuth, updateCategory);
+router.delete("/categories/:id", requireAuth, deleteCategory);
 
 // Items
 router.get("/restaurants/:id/items", listItems);
-router.post("/restaurants/:id/items", authenticate, upload.single("image"), createItem);
-router.patch("/items/:id", authenticate, upload.single("image"), updateItem);
-router.delete("/items/:id", authenticate, deleteItem);
+router.post("/restaurants/:id/items", requireAuth, upload.single("image"), createItem);
+router.patch("/items/:id", requireAuth, upload.single("image"), updateItem);
+router.delete("/items/:id", requireAuth, deleteItem);
 
 // Modifiers
-router.get("/items/:id/option-groups", authenticate, listOptionGroups);
-router.post("/items/:id/option-groups", authenticate, createOptionGroup);
-router.patch("/option-groups/:id", authenticate, updateOptionGroup);
-router.delete("/option-groups/:id", authenticate, deleteOptionGroup);
+router.get("/items/:id/option-groups", requireAuth, listOptionGroups);
+router.post("/items/:id/option-groups", requireAuth, createOptionGroup);
+router.patch("/option-groups/:id", requireAuth, updateOptionGroup);
+router.delete("/option-groups/:id", requireAuth, deleteOptionGroup);
 
-router.get("/option-groups/:id/options", authenticate, listOptions);
-router.post("/option-groups/:id/options", authenticate, createOption);
-router.patch("/options/:id", authenticate, updateOption);
-router.delete("/options/:id", authenticate, deleteOption);
+router.get("/option-groups/:id/options", requireAuth, listOptions);
+router.post("/option-groups/:id/options", requireAuth, createOption);
+router.patch("/options/:id", requireAuth, updateOption);
+router.delete("/options/:id", requireAuth, deleteOption);
 
 export default router;
