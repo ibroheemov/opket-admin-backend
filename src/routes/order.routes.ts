@@ -23,6 +23,7 @@ orderRouter.get("/orders/me/active", getMyActiveOrder);
 orderRouter.get("/orders/me", listMyOrders);
 orderRouter.get("/orders/:orderId", getOrderById);
 orderRouter.post("/orders/:orderId/cancel", cancelOrderByConsumer);
+orderRouter.post("/orders/:orderId/cancel", cancelOrderByConsumer);
 
 // courier
 orderRouter.post("/orders/:orderId/assign-courier", assignCourierToOrder);

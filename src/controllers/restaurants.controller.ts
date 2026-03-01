@@ -99,13 +99,26 @@ export const loginRestaurant = async (req: Request, res: Response) => {
 // GET /restaurants?page=&pageSize=&q=
 export const listRestaurants = async (req: Request, res: Response) => {
     try {
-        const { page = "1", pageSize = "10", q } = req.query as Record<string, string>;
+        const { page = "1", pageSize = "10", q, status } = req.query as Record<string, string>;
 
         const p = Math.max(parseInt(page, 10) || 1, 1);
         const ps = Math.min(Math.max(parseInt(pageSize, 10) || 10, 1), 100);
         const skip = (p - 1) * ps;
 
         const filter: any = {};
+
+        // 🔥 Status filtering
+        if (!status || status === "ACTIVE") {
+            // default
+            filter.status = "ACTIVE";
+        } else if (status === "ALL") {
+            // no filter → all statuses
+        } else {
+            // support multiple statuses
+            const statuses = status.split(",");
+            filter.status = { $in: statuses };
+        }
+
         if (q && q.trim()) {
             const s = q.trim();
             // If you added a text index, you can use $text. Otherwise regex works fine.
@@ -428,6 +441,8 @@ export const updateRestaurant = async (req: Request, res: Response) => {
 
         if (req.body.prep_time_min !== undefined) $set.prep_time_min = toNum(req.body.prep_time_min, existing.prep_time_min);
         if (req.body.prep_time_max !== undefined) $set.prep_time_max = toNum(req.body.prep_time_max, existing.prep_time_max);
+
+        if (req.body.rating_avg !== undefined) $set.rating_avg = toNum(req.body.rating_avg, existing.rating_avg);
 
         if (req.body.min_order_amount !== undefined) $set.min_order_amount = toNum(req.body.min_order_amount, existing.min_order_amount);
 
