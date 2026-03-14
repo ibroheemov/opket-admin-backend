@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { MenuItemModel } from "../models/MenuItem";
 import { uploadBufferToCloudinary } from "../utils/uploadToCloudinary";
 import { OrderFoodTypes } from "../types/food.types";
+import { OrderModel } from "../models/OrderModel";
 
 /** GET /restaurants/:id/items */
 export const orderFood = async (req: Request, res: Response) => {
@@ -20,5 +21,44 @@ export const orderFood = async (req: Request, res: Response) => {
     //     .lean();
 
     res.json({ success: true });
+};
+
+
+
+export const getOrders = async (req: Request, res: Response) => {
+    try {
+        const { consumerId, restaurantId, courierId, status, isActive } = req.query;
+
+        const filter: any = {};
+
+        if (consumerId) filter.consumerId = consumerId;
+        if (restaurantId) filter.restaurantId = restaurantId;
+        if (courierId) filter.courierId = courierId;
+        if (status) filter.status = status;
+        if (isActive !== undefined) filter.isActive = isActive === "true";
+
+        const orders = await OrderModel.find(filter)
+            .populate({
+                path: "restaurantId",
+                select: "name phone",
+            })
+            .populate({
+                path: "courierId",
+                select: "name phone carModel carColor carNumber regionCode",
+            })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.json({
+            count: orders.length,
+            orders,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to fetch orders",
+        });
+    }
 };
 

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config/env";
+import { ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY } from "../config/constants";
 
 export interface JwtPayload {
     id: string;
@@ -14,8 +15,12 @@ if (!JWT_SECRET) {
 
 export function signToken(payload: JwtPayload) {
     return jwt.sign(payload, JWT_SECRET, {
-        expiresIn: "7d",
+        expiresIn: ACCESS_TOKEN_EXPIRY,
     });
+}
+
+export function generateRefreshToken(payload: JwtPayload): string {
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
 }
 
 export function verifyToken(token: string): JwtPayload {

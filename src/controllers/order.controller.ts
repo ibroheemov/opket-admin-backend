@@ -46,7 +46,7 @@ export async function createFoodOrder(req: Request, res: Response) {
     try {
         if (!req.user?.id) return bad(res, 401, "Unauthorized");
 
-        const { restaurantId, items, dropoff } = req.body ?? {};
+        const { restaurantId, items, dropoff, itemsSubtotal, deliveryFee } = req.body ?? {};
 
         if (!restaurantId || !isObjectId(restaurantId)) return bad(res, 400, "Invalid restaurantId");
         if (!Array.isArray(items) || items.length === 0) return bad(res, 400, "Items cannot be empty");
@@ -83,7 +83,7 @@ export async function createFoodOrder(req: Request, res: Response) {
 
             // Fetch restaurant pickup coords from DB (source of truth)
             const restaurant = await RestaurantModel.findById(restaurantId)
-                .select("status is_open accepting_orders location lat lng") // keep compatible with your schema
+                .select("status is_open accepting_orders location lat lng ownerUserId delivery") // keep compatible with your schema
                 .session(session)
                 .lean();
 
@@ -115,15 +115,38 @@ export async function createFoodOrder(req: Request, res: Response) {
                 return bad(res, 409, "Restaurant has no pickup location configured");
             }
 
+            const passenger = await PassengerModel.findById(req.user.id).select("phone");
+
+            if (!passenger) {
+                return bad(res, 404, "No user found with this id");
+            }
+
             const consumerId = toObjectId(req.user.id);
+
+            // Generate order number
+            const { orderNumber, orderDate } = await getNextOrderNumber(restaurantId);
+
+            const { items, pricing } =
+                await buildOrderPricing(
+                    toObjectId(restaurantId),
+                    normalizedItems,
+                    { lat: pickupLat, lon: pickupLon },
+                    { lat: dropLat, lon: dropLon },
+                    restaurant.delivery.free_over_amount,
+                );
+
 
             const [created] = await OrderModel.create(
                 [
                     {
+                        pricing,
+                        orderNumber,
+                        orderDate,
                         restaurantId: toObjectId(restaurantId),
                         consumerId,
+                        consumerPhone: passenger.phone,
                         courierId: null,
-                        items: normalizedItems,
+                        items,
                         dropoff: { lat: dropLat, lon: dropLon },
                         pickup: { lat: pickupLat, lon: pickupLon },
                         status: "PLACED" as OrderStatus,
@@ -132,6 +155,13 @@ export async function createFoodOrder(req: Request, res: Response) {
                 ],
                 { session }
             );
+
+            console.log(restaurant.ownerUserId);
+            console.log(restaurant.ownerUserId.toString());
+
+            // const isEmitted = await emitToRestaurant(restaurantId, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
+            const isEmitted = await emitToRestaurant(`${restaurant.ownerUserId}-bg`, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
+            console.log("food_order", isEmitted);
 
             await session.commitTransaction();
             return ok(res, created);
@@ -288,7 +318,14 @@ export async function updateOrderStatus(req: Request, res: Response) {
         const userId = req.user.id;
         const by = toObjectId(userId);
 
-        const order = await OrderModel.findById(orderId);
+        const order = await OrderModel.findById(orderId).populate({
+            path: "restaurantId",
+            select: "name phone",
+        })
+            .populate({
+                path: "courierId",
+                select: "name phone carModel carColor carNumber regionCode",
+            });
         if (!order) return bad(res, 404, "Order not found");
 
         // Access control (adjust to your domain rules)
@@ -300,7 +337,7 @@ export async function updateOrderStatus(req: Request, res: Response) {
 
         const role = req.user.role;
         const canUpdate =
-            role === "ADMIN" ||
+            role === "ADMIN" || role === "RESTAURANT_OWNER" ||
             isCourier ||
             isRestaurant ||
             // optionally allow consumer to mark DELIVERED? usually no
@@ -378,6 +415,10 @@ import axios from "axios";
 import { DeliveryFeeRequestBody, GoogleRoutesResponse } from "../types/genera.types";
 import { config } from "../config/env";
 import { haversineDistanceMeters } from "../utils/haversineDistanceMeters";
+import { emitToRestaurant } from "../gateway/socket";
+import { getNextOrderNumber } from "../utils/getNextOrderNumber";
+import { buildOrderPricing } from "../utils/buildOrderPricing";
+import { PassengerModel } from "../models/PassengerModel";
 
 
 export async function calculateDeliveryFee(

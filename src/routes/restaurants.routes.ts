@@ -4,16 +4,17 @@ import {
     createRestaurant,
     getRestaurantById,
     updateRestaurant,
-    loginRestaurant,
+    registerFcm,
 } from "../controllers/restaurants.controller";
 import { upload } from "../middleware/upload";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.get("/login", loginRestaurant);
 router.get("/", listRestaurants);
+
 router.post("/", requireAuth, upload.single("banner"), createRestaurant);
+router.post("/register-fcm", requireAuth, registerFcm);
 router.get("/:id", requireAuth, getRestaurantById);
 router.patch("/:id",
     upload.fields([

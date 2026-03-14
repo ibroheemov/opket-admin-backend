@@ -19,6 +19,7 @@ export interface IRestaurant extends Document {
     name: string;
     description?: string;
     phone: string;
+    fcmToken?: string;
 
     // Address
     address: {
@@ -131,6 +132,7 @@ const restaurantSchema = new Schema<IRestaurant>(
         name: { type: String, required: true, trim: true, index: true },
         description: { type: String, maxlength: 2000, default: null },
         phone: { type: String, required: true, trim: true },
+        fcmToken: { type: String },
 
         address: {
             line1: { type: String, required: true, trim: true },

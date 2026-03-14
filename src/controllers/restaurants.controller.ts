@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import { signRestaurantToken } from "../utils/jwt";
 import { UserModel } from "../models/UserModel";
 import { emptyToNull, parseJsonField, toBool, toNum, uploadToStorage } from "../utils/restaurant.utils";
+import { signToken } from "../utils/jwt_2";
 
 
 type AddressInput = {
@@ -60,40 +61,62 @@ function bad(res: Response, code: number, message: string) {
     return res.status(code).json({ success: false, message });
 }
 
-export const loginRestaurant = async (req: Request, res: Response) => {
-    // try {
-    //     const { phone, password } = req.body ?? {};
+export const loginRestaurantOwner = async (req: Request, res: Response) => {
+    try {
+        const { phone, password } = req.body ?? {};
 
-    //     if (!phone || !password) {
-    //         return res.status(400).json({ success: false, message: "phone and password are required" });
-    //     }
+        if (!phone || !password) {
+            return res.status(400).json({ success: false, message: "phone and password are required" });
+        }
 
-    //     // passwordHash is select:false, so we must explicitly select it
-    //     const restaurant = await RestaurantModel.findOne({ phone }).select("+passwordHash");
-    //     if (!restaurant || !restaurant.passwordHash) {
-    //         return res.status(401).json({ success: false, message: "Invalid credentials" });
-    //     }
+        // passwordHash is select:false, so we must explicitly select it
+        const owner = await UserModel.findOne({ phone }).select("+passwordHash");
+        if (!owner || !owner.passwordHash) {
+            return res.status(401).json({ success: false, message: "Invalid credentials" });
+        }
 
-    //     const ok = await bcrypt.compare(password, restaurant.passwordHash);
-    //     if (!ok) {
-    //         return res.status(401).json({ success: false, message: "Invalid credentials" });
-    //     }
+        const ok = await bcrypt.compare(password, owner.passwordHash);
+        if (!ok) {
+            return res.status(401).json({ success: false, message: "Invalid credentials" });
+        }
 
-    //     const token = signRestaurantToken({ rid: restaurant.id.toString() });
+        const restaurant = await RestaurantModel.findOne({ ownerUserId: owner._id }).select("name");
 
-    //     // sanitize: remove passwordHash before returning
-    //     const restaurantSafe = restaurant.toObject();
-    //     delete (restaurantSafe as any).passwordHash;
 
-    //     return res.status(200).json({
-    //         success: true,
-    //         token,
-    //         restaurant: restaurantSafe,
-    //     });
-    // } catch (e: any) {
-    //     console.error("loginRestaurant:", e);
-    //     return res.status(500).json({ success: false, message: e?.message ?? "Login failed" });
-    // }
+        const accessToken = signToken({ id: owner.id.toString(), role: "RESTAURANT_OWNER" });
+        const refreshToken = signToken({ id: owner.id.toString(), role: "RESTAURANT_OWNER" });
+
+        // sanitize: remove passwordHash before returning
+        const ownerSafe = owner.toObject();
+        delete (ownerSafe as any).passwordHash;
+
+        return res.status(200).json({
+            success: true,
+            accessToken,
+            refreshToken,
+            restaurant,
+        });
+    } catch (e: any) {
+        console.error("loginRestaurant:", e);
+        return res.status(500).json({ success: false, message: e?.message ?? "Login failed" });
+    }
+};
+
+export const registerFcm = async (req: AuthedRequest, res: Response) => {
+
+    try {
+        const { fcmToken } = req.body;
+        const id = req.user?.id;
+
+        if (!id || !fcmToken) return res.sendStatus(400);
+
+        const updated = await RestaurantModel.findOneAndUpdate({ ownerUserId: id }, { fcmToken });
+        console.log("UPDATED: ", updated?.fcmToken, "FCM token: ", fcmToken, "ID:", id);
+
+        res.status(200).json({ "success": true });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error });
+    }
 };
 
 // GET /restaurants?page=&pageSize=&q=

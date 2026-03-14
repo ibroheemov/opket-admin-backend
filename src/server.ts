@@ -12,6 +12,8 @@ import { connectDB } from './utils/db';
 import bodyParser from "body-parser";
 import { adminRouter } from './routes/admin.routes';
 import { connectRedis } from './utils/redisClient';
+import http from "http";
+import { initSocketServer } from './gateway/socket';
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use(cors());
 async function startServer() {
     await connectDB();
     await connectRedis();
+    const server = http.createServer(app);
+    initSocketServer(server);
 
     // routes
     app.use('/auth', authRoutes);
@@ -39,7 +43,7 @@ async function startServer() {
     });
 
     const PORT = config.PORT;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
     });
 }
