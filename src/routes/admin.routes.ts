@@ -13,7 +13,7 @@ export const adminRouter = Router();
 adminRouter.post("/restaurant-owners", requireAuth, requireRole("ADMIN"), createRestaurantOwner);
 adminRouter.get("/restaurant-owners", requireAuth, requireRole("ADMIN"), getRestaurantOwners);
 
-adminRouter.get("/restaurant-types", requireAuth, listRestaurantTypes);
+adminRouter.get("/restaurant-types", listRestaurantTypes);
 adminRouter.post("/restaurant-types", requireAuth, upload.single("image"), createRestaurantType);
 adminRouter.patch("/restaurant-types/:id", requireAuth, upload.single("image"), updateRestaurantType);
 adminRouter.delete("/restaurant-types/:id", requireAuth, deleteRestaurantType);

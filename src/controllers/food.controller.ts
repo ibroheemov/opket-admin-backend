@@ -3,6 +3,14 @@ import { MenuItemModel } from "../models/MenuItem";
 import { uploadBufferToCloudinary } from "../utils/uploadToCloudinary";
 import { OrderFoodTypes } from "../types/food.types";
 import { OrderModel } from "../models/OrderModel";
+import { Types } from "mongoose";
+
+type OrderStatus =
+    | "PLACED"
+    | "PREPARING"
+    | "READY_FOR_PICKUP"
+    | "DELIVERED"
+    | "CANCELLED";
 
 /** GET /restaurants/:id/items */
 export const orderFood = async (req: Request, res: Response) => {
@@ -23,6 +31,48 @@ export const orderFood = async (req: Request, res: Response) => {
     res.json({ success: true });
 };
 
+function bad(res: Response, code: number, message: string) {
+    return res.status(code).json({ ok: false, message });
+}
+
+function toObjectId(id: string): Types.ObjectId {
+    return new Types.ObjectId(id);
+}
+
+export const getActiveOrders = async (req: Request, res: Response) => {
+    try {
+        if (!req.user?.id) return bad(res, 401, "Unauthorized");
+        const userId = req.user.id;
+        const by = toObjectId(userId);
+
+        const orders = await OrderModel.find({
+            status: { $nin: ["DELIVERED", "CANCELLED"] },
+            consumerId: by,
+        })
+            .populate({
+                path: "restaurantId",
+                select: "name phone",
+            })
+            .populate({
+                path: "courierId",
+                select: "name phone carModel carColor carNumber regionCode",
+            })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.json({
+            count: orders.length,
+            orders,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to fetch orders",
+        });
+    }
+};
 
 
 export const getOrders = async (req: Request, res: Response) => {
@@ -49,10 +99,28 @@ export const getOrders = async (req: Request, res: Response) => {
             .sort({ createdAt: -1 })
             .lean();
 
+        const statusCounts = await OrderModel.aggregate([
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]);
+
+        const orderCountByStatus = {
+            PLACED: 0,
+            PREPARING: 0,
+            READY_FOR_PICKUP: 0,
+            DELIVERED: 0,
+            CANCELLED: 0,
+        };
+
+        statusCounts.forEach((item: { _id: OrderStatus; count: number }) => {
+            orderCountByStatus[item._id] = item.count;
+        });
+
         return res.json({
             count: orders.length,
+            orderCountByStatus,
             orders,
         });
+
     } catch (error) {
         console.error(error);
 
@@ -61,4 +129,3 @@ export const getOrders = async (req: Request, res: Response) => {
         });
     }
 };
-

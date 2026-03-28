@@ -31,16 +31,6 @@ export async function requireAuth(
             return unauthorized(res, "Invalid or expired token");
         }
 
-        // Optional but recommended:
-        // Verify user still exists and is active
-        // const user = await UserModel.findById(payload.id)
-        //     .select("_id role isActive")
-        //     .lean();
-
-        // if (!user || !user.isActive) {
-        //     return unauthorized(res, "User no longer active");
-        // }
-
         // Attach safe user object
         req.user = {
             id: payload.id,

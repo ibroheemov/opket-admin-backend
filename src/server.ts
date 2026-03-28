@@ -1,5 +1,6 @@
 import express from 'express';
 import authRoutes from './routes/auth.routes';
+import rideOptionsRoutes from './routes/options.routes';
 import ridesRoutes from './routes/ride.routes';
 import driverRoutes from './routes/driver.routes';
 import menuRoutes from './routes/menu.routes';
@@ -29,6 +30,7 @@ async function startServer() {
     initSocketServer(server);
 
     // routes
+    app.use('/ride-options', rideOptionsRoutes);
     app.use('/auth', authRoutes);
     app.use('/ride', ridesRoutes);
     app.use('/drivers', driverRoutes);

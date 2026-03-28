@@ -156,6 +156,12 @@ export async function createFoodOrder(req: Request, res: Response) {
                 { session }
             );
 
+            // populate restaurant
+            const order = await created.populate({
+                path: "restaurantId",
+                select: "name location lat lng ownerUserId",
+            });
+
             console.log(restaurant.ownerUserId);
             console.log(restaurant.ownerUserId.toString());
 
@@ -164,7 +170,8 @@ export async function createFoodOrder(req: Request, res: Response) {
             console.log("food_order", isEmitted);
 
             await session.commitTransaction();
-            return ok(res, created);
+
+            return ok(res, order);
         } catch (e) {
             await session.abortTransaction();
             throw e;
@@ -336,14 +343,14 @@ export async function updateOrderStatus(req: Request, res: Response) {
         const isRestaurant = String(order.restaurantId) === userId;
 
         const role = req.user.role;
-        const canUpdate =
-            role === "ADMIN" || role === "RESTAURANT_OWNER" ||
-            isCourier ||
-            isRestaurant ||
-            // optionally allow consumer to mark DELIVERED? usually no
-            false;
+        // const canUpdate =
+        //     role === "ADMIN" || role === "RESTAURANT_OWNER" || role === "COURIER" ||
+        //     isCourier ||
+        //     isRestaurant ||
+        //     // optionally allow consumer to mark DELIVERED? usually no
+        //     false;
 
-        if (!canUpdate) return bad(res, 403, "Forbidden");
+        // if (!canUpdate) return bad(res, 403, "Forbidden");
 
         // Simple transition rules (tighten as you wish)
         const terminal = new Set<OrderStatus>([
@@ -367,6 +374,26 @@ export async function updateOrderStatus(req: Request, res: Response) {
         return bad(res, 500, err?.message ?? "Server error");
     }
 }
+
+export async function getOrderStatus(req: Request, res: Response) {
+    try {
+        if (!req.user?.id) return bad(res, 401, "Unauthorized");
+
+        const { orderId } = req.params;
+        if (!isObjectId(orderId)) return bad(res, 400, "Invalid orderId");
+
+        const order = await OrderModel.findById(orderId).select("status");
+
+        if (!order) return bad(res, 404, "Order not found");
+
+        const status = order.status;
+
+        return ok(res, status);
+    } catch (err: any) {
+        return bad(res, 500, err?.message ?? "Server error");
+    }
+}
+
 
 /**
  * POST /orders/:orderId/cancel
