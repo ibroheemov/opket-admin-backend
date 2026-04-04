@@ -18,7 +18,7 @@ export const config = {
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
     FIREBASE_ADMIN_SA: process.env.FIREBASE_ADMIN_SA!,
-    MONGO_URI: process.env.MONGO_URI!,
+    MONGO_URI: process.env.MONGO_URI_OPKET!,
     PORT: Number(process.env.PORT || 4000),
     REDIS_ENDPOINT: process.env.REDIS_ENDPOINT!,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD!,
