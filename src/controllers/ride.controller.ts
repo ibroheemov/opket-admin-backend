@@ -4,7 +4,6 @@ import { RideModel } from "../models/Ride";
 
 export const getRides = async (req: AuthRequest, res: Response) => {
     try {
-        // Query params
         const {
             page = "1",
             pageSize = "10",
@@ -17,67 +16,194 @@ export const getRides = async (req: AuthRequest, res: Response) => {
             driverId,
             offeredTo,
             sortBy = "createdAt",
-            sortOrder = "desc", // "asc" | "desc"
-            from, // date string
-            to,   // date string
-            q,    // optional text search for addresses
+            sortOrder = "desc",
+            from,
+            to,
+            q,
         } = req.query as Record<string, string>;
 
         const pageNum = Math.max(parseInt(page, 10) || 1, 1);
         const limitNum = Math.min(Math.max(parseInt(pageSize, 10) || 10, 1), 100);
         const skip = (pageNum - 1) * limitNum;
 
-        // Build filter
-        const filter: any = {};
+        // -------------------------
+        // 🎯 Filters
+        // -------------------------
+        const rideMatch: any = {};
+        const ghostMatch: any = {};
 
-        if (status) filter.status = status;
-        if (type) filter.type = type;
-        if (rideType) filter.rideType = rideType;
+        if (status) rideMatch.status = status;
+        if (type) rideMatch.type = type;
+
+        if (rideType) {
+            rideMatch.rideType = rideType;
+            ghostMatch.rideType = rideType;
+        }
 
         if (typeof luggage !== "undefined") {
-            // luggage can be "true"/"false"
-            if (luggage === "true") filter.luggage = true;
-            if (luggage === "false") filter.luggage = false;
+            if (luggage === "true") rideMatch.luggage = true;
+            if (luggage === "false") rideMatch.luggage = false;
         }
 
-        if (userChatId) filter.userChatId = Number(userChatId);
-        if (userId) filter.userId = userId;
-        if (driverId) filter.driverId = driverId;
-        if (offeredTo) filter.offeredTo = offeredTo;
+        if (userChatId) rideMatch.userChatId = Number(userChatId);
+        if (userId) rideMatch.userId = userId;
 
-        // Date range filter (createdAt)
+        if (driverId) {
+            rideMatch.driverId = driverId;
+            ghostMatch.driverId = driverId;
+        }
+
+        if (offeredTo) rideMatch.offeredTo = offeredTo;
+
         if (from || to) {
-            filter.createdAt = {};
-            if (from) filter.createdAt.$gte = new Date(from);
-            if (to) filter.createdAt.$lte = new Date(to);
+            const df: any = {};
+            if (from) df.$gte = new Date(from);
+            if (to) df.$lte = new Date(to);
+
+            rideMatch.createdAt = df;
+            ghostMatch.createdAt = df;
         }
 
-        // Optional search (pickup/dropoff address)
         if (q && q.trim()) {
             const regex = new RegExp(q.trim(), "i");
-            filter.$or = [
+            rideMatch.$or = [
                 { "pickup.address": regex },
                 { "dropoff.address": regex },
             ];
         }
 
-        // Sorting
-        const sort: any = {};
-        sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+        const sortStage = {
+            $sort: {
+                [sortBy]: sortOrder === "asc" ? 1 : -1,
+            },
+        };
 
-        const [rides, total] = await Promise.all([
-            RideModel.find(filter)
-                .sort(sort)
-                .skip(skip)
-                .limit(limitNum)
-                .populate({
-                    path: "driverId",
-                    select: "carModel carColor carNumber name phone",
-                })
-                .populate({ path: "statusHistory.driverId", select: "carModel carColor carNumber name phone" })
-                .lean(),
-            RideModel.countDocuments(filter),
-        ]);
+        // -------------------------
+        // 🚀 Aggregation
+        // -------------------------
+
+        const pipeline: any[] = [
+            { $match: rideMatch },
+
+            { $addFields: { source: "ride" } },
+
+            {
+                $unionWith: {
+                    coll: "ghostrides",
+                    pipeline: [
+                        { $match: ghostMatch },
+                        {
+                            $addFields: {
+                                type: "ghost",
+                                source: "ghost",
+                            },
+                        },
+                    ],
+                },
+            },
+
+            // -------------------------
+            // 👤 DRIVER LOOKUP
+            // -------------------------
+            {
+                $lookup: {
+                    from: "drivers",
+                    localField: "driverId",
+                    foreignField: "_id",
+                    as: "driver",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$driver",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+
+            // -------------------------
+            // 📜 STATUS HISTORY DRIVER LOOKUP
+            // -------------------------
+
+            // collect all driverIds from statusHistory
+            {
+                $addFields: {
+                    statusDriverIds: {
+                        $map: {
+                            input: "$statusHistory",
+                            as: "s",
+                            in: "$$s.driverId",
+                        },
+                    },
+                },
+            },
+
+            {
+                $lookup: {
+                    from: "drivers",
+                    localField: "statusDriverIds",
+                    foreignField: "_id",
+                    as: "statusDrivers",
+                },
+            },
+
+            // merge driver info into each statusHistory item
+            {
+                $addFields: {
+                    statusHistory: {
+                        $map: {
+                            input: "$statusHistory",
+                            as: "s",
+                            in: {
+                                $mergeObjects: [
+                                    "$$s",
+                                    {
+                                        driver: {
+                                            $arrayElemAt: [
+                                                {
+                                                    $filter: {
+                                                        input: "$statusDrivers",
+                                                        as: "d",
+                                                        cond: {
+                                                            $eq: ["$$d._id", "$$s.driverId"],
+                                                        },
+                                                    },
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+
+            // optional cleanup
+            {
+                $project: {
+                    statusDriverIds: 0,
+                    statusDrivers: 0,
+                },
+            },
+
+            sortStage,
+
+            {
+                $facet: {
+                    data: [
+                        { $skip: skip },
+                        { $limit: limitNum },
+                    ],
+                    meta: [{ $count: "total" }],
+                },
+            },
+        ];
+
+        const result = await RideModel.aggregate(pipeline);
+
+        const rides = result[0]?.data || [];
+        const total = result[0]?.meta?.[0]?.total || 0;
 
         return res.json({
             success: true,

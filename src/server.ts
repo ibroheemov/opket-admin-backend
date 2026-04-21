@@ -5,6 +5,7 @@ import ridesRoutes from './routes/ride.routes';
 import driverRoutes from './routes/driver.routes';
 import menuRoutes from './routes/menu.routes';
 import foodRoutes from './routes/food.routes';
+import fareRoutes from "./routes/fare.routes";
 import restaurantsRoutes from './routes/restaurants.routes';
 import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
@@ -38,6 +39,8 @@ async function startServer() {
     app.use("/food", foodRoutes);
     app.use("/restaurants", restaurantsRoutes);
     app.use("/admin", adminRouter);
+    app.use("/fare", fareRoutes);
+
 
     // protected example route
     app.get('/admin', authenticate, (req, res) => {

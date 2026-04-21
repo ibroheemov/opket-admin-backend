@@ -8,10 +8,15 @@ export interface IRideOption extends Document {
     charge: number;
     createdAt: Date;
     updatedAt: Date;
+    type?: string;
 }
 
 const RideOptionSchema: Schema = new Schema(
     {
+        type: {
+            type: String,
+            enum: ["passenger", "driver"]
+        },
         title: {
             type: String,
             required: true,

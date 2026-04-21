@@ -1,9 +1,11 @@
-import RideOption from "../models/RideOption";
+// src/controllers/fareController.ts
 import { Request, Response } from "express";
+import { FareConfigModel } from "../models/FareConfigModel";
 
-export const createOption = async (req: Request, res: Response) => {
+// CRUD
+export const createFare = async (req: Request, res: Response) => {
     try {
-        const service = new RideOption(req.body);
+        const service = new FareConfigModel(req.body);
         const saved = await service.save();
         res.status(201).json(saved);
     } catch (error) {
@@ -11,18 +13,18 @@ export const createOption = async (req: Request, res: Response) => {
     }
 };
 
-export const getOptions = async (req: Request, res: Response) => {
+export const getFares = async (req: Request, res: Response) => {
     try {
-        const services = await RideOption.find({ type: req.params.type });
+        const services = await FareConfigModel.find();
         res.json(services);
     } catch (error) {
         res.status(500).json({ error });
     }
 };
 
-export const getOptionById = async (req: Request, res: Response) => {
+export const getFareByType = async (req: Request, res: Response) => {
     try {
-        const service = await RideOption.findById(req.params.id);
+        const service = await FareConfigModel.findOne({ type: req.params.type });
         if (!service) return res.status(404).json({ message: "Not found" });
         res.json(service);
     } catch (error) {
@@ -30,9 +32,9 @@ export const getOptionById = async (req: Request, res: Response) => {
     }
 };
 
-export const updateOption = async (req: Request, res: Response) => {
+export const updateFare = async (req: Request, res: Response) => {
     try {
-        const updated = await RideOption.findByIdAndUpdate(
+        const updated = await FareConfigModel.findByIdAndUpdate(
             req.params.id,
             req.body,
             { new: true, runValidators: true }
@@ -47,9 +49,9 @@ export const updateOption = async (req: Request, res: Response) => {
 };
 
 
-export const deleteOption = async (req: Request, res: Response) => {
+export const deleteFare = async (req: Request, res: Response) => {
     try {
-        const deleted = await RideOption.findByIdAndDelete(req.params.id);
+        const deleted = await FareConfigModel.findByIdAndDelete(req.params.id);
 
         if (!deleted) return res.status(404).json({ message: "Not found" });
 
