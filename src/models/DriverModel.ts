@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export type DriverStatus = "offline" | "available" | "on_trip";
 
@@ -22,6 +22,7 @@ export interface IDriverDocument extends Document {
     lastname: string;
     name: string;
     phone: string;
+    password?: string;
     appVersion?: string;
 
     carModel?: string;
@@ -51,6 +52,7 @@ export interface IDriverDocument extends Document {
     passport?: IUploadMeta;
 
     balance: number;
+    commissionRate?: number;
     canReceiveOffers: boolean;
     blocked?: boolean;
     hasPremiumCar: boolean;
@@ -59,7 +61,8 @@ export interface IDriverDocument extends Document {
         event: string;
         data: Record<string, any>;
     }[];
-    enabledOptions?: string[]
+    enabledOptions?: string[];
+    tariffs: Types.ObjectId[];
 }
 
 
@@ -81,11 +84,13 @@ const DriverSchema = new Schema<IDriverDocument>(
         firstname: { type: String, required: true },
         lastname: { type: String, required: true },
         name: { type: String, required: true },
-        appVersion: { type: String, required: true },
+        appVersion: { type: String },
 
         phone: { type: String, required: true, unique: true, index: true },
 
+        password: { type: String },
         balance: { type: Number, default: 0 },
+        commissionRate: { type: Number },
 
         carModel: String,
         carNumber: String,
@@ -131,6 +136,15 @@ const DriverSchema = new Schema<IDriverDocument>(
             default: [],
         },
         enabledOptions: { type: [String], default: [] },
+        tariffs: {
+            type: [
+                {
+                    type: Schema.Types.ObjectId,
+                    ref: "FareConfig"
+                }
+            ],
+            default: []
+        },
     },
     { timestamps: true }
 );

@@ -90,6 +90,7 @@ const ALLOWED_FIELDS = new Set([
     "enabledOptions",
     "location",
     "currentRideId",
+    "tariffs",
 ]);
 
 export const updateDriver = async (req: Request, res: Response) => {

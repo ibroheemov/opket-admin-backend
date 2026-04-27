@@ -3,10 +3,10 @@ import { redis } from "../utils/redisClient";
 export class DriverStore {
 
     async getAllGeoDrivers(): Promise<{ driverId: string; latitude: number; longitude: number }[]> {
-        const driverIds = await redis.zRange("drivers:geo", 0, -1);
+        const driverIds = await redis.zRange("drivers:geo:standard", 0, -1);
         if (!driverIds.length) return [];
 
-        const positions = await redis.geoPos("drivers:geo", driverIds);
+        const positions = await redis.geoPos("drivers:geo:standard", driverIds);
 
         const drivers: { driverId: string; latitude: number; longitude: number }[] = [];
 

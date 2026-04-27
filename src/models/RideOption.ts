@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRideOption extends Document {
     title: string;
+    title_for_passenger?: string;
     option_id: string;
     description?: string;
     instant?: boolean;
@@ -18,6 +19,10 @@ const RideOptionSchema: Schema = new Schema(
             enum: ["passenger", "driver"]
         },
         title: {
+            type: String,
+            trim: true,
+        },
+        title_for_passenger: {
             type: String,
             required: true,
             trim: true,
