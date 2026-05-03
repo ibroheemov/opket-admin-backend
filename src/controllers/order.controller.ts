@@ -165,9 +165,9 @@ export async function createFoodOrder(req: Request, res: Response) {
             console.log(restaurant.ownerUserId);
             console.log(restaurant.ownerUserId.toString());
 
-            // const isEmitted = await emitToRestaurant(restaurantId, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
-            const isEmitted = await emitToRestaurant(`${restaurant.ownerUserId}-bg`, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
-            console.log("food_order", isEmitted);
+            const isEmitted2 = await emitToRestaurant(restaurant.ownerUserId.toString(), "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
+            const isEmitted = await emitToRestaurant(`${restaurant.ownerUserId.toString()}-bg`, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
+            console.log("food_order", isEmitted, isEmitted2);
 
             await session.commitTransaction();
 
