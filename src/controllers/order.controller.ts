@@ -54,14 +54,14 @@ export async function createFoodOrder(req: Request, res: Response) {
         // Note: don't use `if (!dropoff?.lat || !dropoff?.lon)` because 0 is valid.
         if (
             !dropoff ||
-            !Number.isFinite(Number(dropoff.lat)) ||
-            !Number.isFinite(Number(dropoff.lon))
+            !Number.isFinite(Number(dropoff.latitude)) ||
+            !Number.isFinite(Number(dropoff.longitude))
         ) {
             return bad(res, 400, "Invalid dropoff");
         }
 
-        const dropLat = Number(dropoff.lat);
-        const dropLon = Number(dropoff.lon);
+        const dropLat = Number(dropoff.latitude);
+        const dropLon = Number(dropoff.longitude);
         if (dropLat < -90 || dropLat > 90 || dropLon < -180 || dropLon > 180) {
             return bad(res, 400, "Dropoff out of range");
         }
@@ -147,8 +147,8 @@ export async function createFoodOrder(req: Request, res: Response) {
                         consumerPhone: passenger.phone,
                         courierId: null,
                         items,
-                        dropoff: { lat: dropLat, lon: dropLon },
-                        pickup: { lat: pickupLat, lon: pickupLon },
+                        dropoff: { latitude: dropLat, longitude: dropLon },
+                        pickup: { latitude: pickupLat, longitude: pickupLon },
                         status: "PLACED" as OrderStatus,
                         statusHistory: [pushHistory({ status: "PLACED", by: consumerId })],
                     },
