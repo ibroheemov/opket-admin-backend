@@ -8,7 +8,18 @@ import { signRestaurantToken } from "../utils/jwt";
 import { UserModel } from "../models/UserModel";
 import { emptyToNull, parseJsonField, toBool, toNum, uploadToStorage } from "../utils/restaurant.utils";
 import { signToken } from "../utils/jwt_2";
+import { slugify } from "../utils/slugify";
 
+async function uniqueSlug(base: string, ignoreId?: string): Promise<string> {
+    let slug = base;
+    let i = 1;
+    while (true) {
+        const existing = await RestaurantModel.findOne({ slug }).select("_id").lean();
+        if (!existing || (ignoreId && String(existing._id) === ignoreId)) return slug;
+        i += 1;
+        slug = `${base}-${i}`;
+    }
+}
 
 type AddressInput = {
     line1?: unknown;
@@ -318,12 +329,17 @@ export const createRestaurant = async (req: AuthedRequest, res: Response) => {
         if (radius_km < 0) return bad(res, 400, "delivery.radius_km must be >= 0");
         if (fee_base < 0) return bad(res, 400, "delivery.fee_base must be >= 0");
 
+        const slug = payload.slug
+            ? await uniqueSlug(slugify(String(payload.slug)))
+            : await uniqueSlug(slugify(name));
+
         const restaurant = await RestaurantModel.create({
             ownerUserId: new Types.ObjectId(ownerUserId),
 
             status: payload.status ?? "ACTIVE",
 
             name,
+            slug,
             description: payload.description ?? null,
             phone,
 
@@ -447,6 +463,10 @@ export const updateRestaurant = async (req: Request, res: Response) => {
         if (req.body.status !== undefined) $set.status = req.body.status;
 
         if (req.body.name !== undefined) $set.name = String(req.body.name).trim();
+        if (req.body.slug !== undefined) {
+            const desired = slugify(String(req.body.slug));
+            $set.slug = await uniqueSlug(desired, id);
+        }
         if (req.body.description !== undefined) $set.description = emptyToNull(req.body.description);
         if (req.body.phone !== undefined) $set.phone = String(req.body.phone).trim();
 

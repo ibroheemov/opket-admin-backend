@@ -6,15 +6,26 @@ export interface MenuItemType {
     quantity: number;
 }
 
+export interface SelectedOption {
+    groupId: Types.ObjectId;
+    groupName: string;
+    optionId: Types.ObjectId;
+    optionName: string;
+    price_delta: number;
+}
+
 export interface OrderItem {
     menuItemId: Types.ObjectId;
 
-    name: string;      // snapshot
-    price: number;     // price per item (cents)
+    name: string;      // snapshot — for dine-in includes selected option names in parens
+    price: number;     // unit price after option deltas
 
     quantity: number;
 
     subtotal: number;  // price * quantity
+
+    selectedOptions?: SelectedOption[];
+    notes?: string | null;
 }
 
 export interface OrderPricing {
@@ -47,9 +58,11 @@ export interface OrderModelDoc extends Document {
 
     restaurantId: Types.ObjectId;
     courierId?: Types.ObjectId | null;
-    consumerId: Types.ObjectId;
-    consumerPhone: number;
+    consumerId?: Types.ObjectId | null;
+    consumerPhone?: number | null;
+
     serviceType: ServiceType;
+    tableNumber?: number | null;
 
     items: OrderItem[];
 
@@ -58,8 +71,8 @@ export interface OrderModelDoc extends Document {
     orderNumber: number;
     orderDate: string;
 
-    dropoff: { latitude: number; longitude: number };
-    pickup: { latitude: number; longitude: number };
+    dropoff?: { latitude: number; longitude: number } | null;
+    pickup?: { latitude: number; longitude: number } | null;
 
     status: OrderStatus;
 
@@ -83,6 +96,17 @@ const latLonSchema = new Schema(
     { _id: false }
 );
 
+const selectedOptionSchema = new Schema(
+    {
+        groupId: { type: Schema.Types.ObjectId, ref: "ItemOptionGroup", required: true },
+        groupName: { type: String, required: true },
+        optionId: { type: Schema.Types.ObjectId, ref: "ItemOption", required: true },
+        optionName: { type: String, required: true },
+        price_delta: { type: Number, required: true, default: 0 },
+    },
+    { _id: false }
+);
+
 const orderItemSchema = new Schema(
     {
         menuItemId: { type: Schema.Types.ObjectId, required: true, ref: "MenuItem" },
@@ -93,7 +117,10 @@ const orderItemSchema = new Schema(
 
         quantity: { type: Number, required: true, min: 1, max: 999 },
 
-        subtotal: { type: Number, required: true, min: 0 }
+        subtotal: { type: Number, required: true, min: 0 },
+
+        selectedOptions: { type: [selectedOptionSchema], default: [] },
+        notes: { type: String, default: null, maxlength: 300 },
     },
     { _id: false }
 );
@@ -142,15 +169,17 @@ const orderSchema = new Schema<OrderModelDoc>(
     {
         restaurantId: { type: Schema.Types.ObjectId, required: true, ref: "Restaurant", index: true },
         courierId: { type: Schema.Types.ObjectId, required: false, ref: "Driver", default: null, index: true },
-        consumerId: { type: Schema.Types.ObjectId, required: true, ref: "User", index: true },
-        consumerPhone: { type: Number, required: true },
+        consumerId: { type: Schema.Types.ObjectId, required: false, ref: "User", default: null, index: true },
+        consumerPhone: { type: Number, required: false, default: null },
+
         serviceType: {
             type: String,
             required: true,
+            enum: ["DELIVERY", "DINE_IN"],
             default: "DELIVERY",
-            enum: ["DINE_IN", "DELIVERY", "TAKEAWAY"],
             index: true,
         },
+        tableNumber: { type: Number, required: false, default: null, min: 1 },
 
         items: {
             type: [orderItemSchema],
@@ -158,8 +187,8 @@ const orderSchema = new Schema<OrderModelDoc>(
             validate: [(v: any[]) => v.length > 0, "Items cannot be empty"]
         },
 
-        dropoff: { type: latLonSchema, required: true },
-        pickup: { type: latLonSchema, required: true },
+        dropoff: { type: latLonSchema, required: false, default: null },
+        pickup: { type: latLonSchema, required: false, default: null },
 
         orderNumber: { type: Number, required: true },
         pricing: { type: pricingSchema, required: true },

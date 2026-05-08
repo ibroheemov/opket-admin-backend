@@ -13,7 +13,7 @@ export const createOption = async (req: Request, res: Response) => {
 
 export const getOptions = async (req: Request, res: Response) => {
     try {
-        const services = await RideOption.find({ type: req.params.type });
+        const services = await RideOption.find({ type: req.params.type }).sort({ sort_order: 1 });
         res.json(services);
     } catch (error) {
         res.status(500).json({ error });

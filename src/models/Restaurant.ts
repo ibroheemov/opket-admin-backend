@@ -17,6 +17,7 @@ export interface IRestaurant extends Document {
 
     // Public profile
     name: string;
+    slug: string; // URL identifier — qr.opketme.uz/<slug>
     description?: string;
     phone: string;
     fcmToken?: string;
@@ -130,6 +131,7 @@ const restaurantSchema = new Schema<IRestaurant>(
         status: { type: String, enum: ["ACTIVE", "SUSPENDED", "DELETED"], default: "ACTIVE", index: true },
 
         name: { type: String, required: true, trim: true, index: true },
+        slug: { type: String, required: true, trim: true, lowercase: true, unique: true, index: true },
         description: { type: String, maxlength: 2000, default: null },
         phone: { type: String, required: true, trim: true },
         fcmToken: { type: String },

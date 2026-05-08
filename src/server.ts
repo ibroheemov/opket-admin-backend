@@ -7,6 +7,7 @@ import menuRoutes from './routes/menu.routes';
 import foodRoutes from './routes/food.routes';
 import fareRoutes from "./routes/fare.routes";
 import restaurantsRoutes from './routes/restaurants.routes';
+import publicRoutes from './routes/public.routes';
 import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
 import { config } from './config/env';
@@ -38,6 +39,7 @@ async function startServer() {
     app.use("/menu", menuRoutes);
     app.use("/food", foodRoutes);
     app.use("/restaurants", restaurantsRoutes);
+    app.use("/public", publicRoutes);
     app.use("/admin", adminRouter);
     app.use("/fare", fareRoutes);
 

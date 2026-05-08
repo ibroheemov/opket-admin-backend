@@ -7,6 +7,7 @@ export interface IRideOption extends Document {
     description?: string;
     instant?: boolean;
     charge: number;
+    sort_order: number;
     createdAt: Date;
     updatedAt: Date;
     type?: string;
@@ -42,6 +43,10 @@ const RideOptionSchema: Schema = new Schema(
         charge: {
             type: Number,
             required: true,
+        },
+        sort_order: {
+            type: Number,
+            default: 0,
         },
     },
     {
