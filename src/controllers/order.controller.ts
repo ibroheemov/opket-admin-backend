@@ -46,7 +46,11 @@ export async function createFoodOrder(req: Request, res: Response) {
     try {
         if (!req.user?.id) return bad(res, 401, "Unauthorized");
 
-        const { restaurantId, items, dropoff, itemsSubtotal, deliveryFee } = req.body ?? {};
+        const { restaurantId, items, dropoff, itemsSubtotal, deliveryFee, consumerNote } = req.body ?? {};
+        const cleanedConsumerNote =
+            typeof consumerNote === "string" && consumerNote.trim().length > 0
+                ? consumerNote.trim().slice(0, 300)
+                : null;
 
         if (!restaurantId || !isObjectId(restaurantId)) return bad(res, 400, "Invalid restaurantId");
         if (!Array.isArray(items) || items.length === 0) return bad(res, 400, "Items cannot be empty");
@@ -151,6 +155,7 @@ export async function createFoodOrder(req: Request, res: Response) {
                         pickup: { latitude: pickupLat, longitude: pickupLon },
                         status: "PLACED" as OrderStatus,
                         statusHistory: [pushHistory({ status: "PLACED", by: consumerId })],
+                        consumerNote: cleanedConsumerNote,
                     },
                 ],
                 { session }
