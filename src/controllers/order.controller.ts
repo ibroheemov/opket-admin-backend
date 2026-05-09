@@ -127,8 +127,9 @@ export async function createFoodOrder(req: Request, res: Response) {
 
             const consumerId = toObjectId(req.user.id);
 
-            // Generate order number
-            const { orderNumber, orderDate } = await getNextOrderNumber(restaurantId);
+            // Generate order number inside the transaction so a rollback
+            // doesn't leave a permanent gap in numbering.
+            const { orderNumber, orderDate } = await getNextOrderNumber(restaurantId, session);
 
             const { items, pricing } =
                 await buildOrderPricing(
@@ -167,12 +168,17 @@ export async function createFoodOrder(req: Request, res: Response) {
                 select: "name location lat lng ownerUserId",
             });
 
-            console.log(restaurant.ownerUserId);
-            console.log(restaurant.ownerUserId.toString());
-
-            const isEmitted2 = await emitToRestaurant(restaurant.ownerUserId.toString(), "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
-            const isEmitted = await emitToRestaurant(`${restaurant.ownerUserId.toString()}-bg`, "food_order", { "title": "Yangi buyurtma", "body": "", "channelKey": "restaurant_channel" })
-            console.log("food_order", isEmitted, isEmitted2);
+            const ownerIdStr = restaurant.ownerUserId.toString();
+            await emitToRestaurant(ownerIdStr, "food_order", {
+                title: "Yangi buyurtma",
+                body: "",
+                channelKey: "restaurant_channel",
+            });
+            await emitToRestaurant(`${ownerIdStr}-bg`, "food_order", {
+                title: "Yangi buyurtma",
+                body: "",
+                channelKey: "restaurant_channel",
+            });
 
             await session.commitTransaction();
 
@@ -267,13 +273,13 @@ export async function listMyOrders(req: Request, res: Response) {
 }
 
 /**
- * POST /orders/:orderId/assign-courier
+ * POST /food/orders/:orderId/assign-courier
  * Courier accepts/assigns themselves to an order.
  */
 export async function assignCourierToOrder(req: Request, res: Response) {
     try {
         if (!req.user?.id) return bad(res, 401, "Unauthorized");
-        if (req.user.role && req.user.role !== "COURIER" && req.user.role !== "ADMIN")
+        if (req.user.role !== "COURIER" && req.user.role !== "ADMIN")
             return bad(res, 403, "Only couriers can accept deliveries");
 
         const { orderId } = req.params;
@@ -281,13 +287,13 @@ export async function assignCourierToOrder(req: Request, res: Response) {
 
         const courierId = toObjectId(req.user.id);
 
-        // Atomic claim: only if courierId is null and order is active
+        // Atomic claim: only if courierId is null and order is active.
+        // We don't push a statusHistory entry here — assignment is not a
+        // status transition. The status only changes when the courier
+        // calls /status with PICKED_UP.
         const order = await OrderModel.findOneAndUpdate(
             { _id: orderId, courierId: null, isActive: true },
-            {
-                $set: { courierId },
-                $push: { statusHistory: pushHistory({ status: "ACCEPTED_BY_RESTAURANT", by: courierId, note: "Courier assigned" }) },
-            },
+            { $set: { courierId } },
             { new: true }
         );
 
@@ -330,34 +336,68 @@ export async function updateOrderStatus(req: Request, res: Response) {
         const userId = req.user.id;
         const by = toObjectId(userId);
 
-        const order = await OrderModel.findById(orderId).populate({
-            path: "restaurantId",
-            select: "name phone",
-        })
+        const order = await OrderModel.findById(orderId)
+            .populate({
+                path: "restaurantId",
+                select: "name phone ownerUserId",
+            })
             .populate({
                 path: "courierId",
                 select: "name phone carModel carColor carNumber regionCode",
             });
         if (!order) return bad(res, 404, "Order not found");
 
-        // Access control (adjust to your domain rules)
-        const isCourier = order.courierId && String(order.courierId) === userId;
-        const isConsumer = String(order.consumerId) === userId;
+        // Access control: ownership-based, NOT just role-based.
+        const restaurantPop = order.restaurantId as any;
+        const ownerUserId = restaurantPop?.ownerUserId ? String(restaurantPop.ownerUserId) : null;
+        const isRestaurantOwner = ownerUserId !== null && ownerUserId === userId;
 
-        // NOTE: restaurant ownership is usually via Restaurant.ownerId
-        const isRestaurant = String(order.restaurantId) === userId;
+        const courierPop = order.courierId as any;
+        const assignedCourierId = courierPop?._id ? String(courierPop._id) : (courierPop ? String(courierPop) : null);
+        const isAssignedCourier = assignedCourierId !== null && assignedCourierId === userId;
+
+        const isConsumer = order.consumerId !== null && String(order.consumerId) === userId;
 
         const role = req.user.role;
-        // const canUpdate =
-        //     role === "ADMIN" || role === "RESTAURANT_OWNER" || role === "COURIER" ||
-        //     isCourier ||
-        //     isRestaurant ||
-        //     // optionally allow consumer to mark DELIVERED? usually no
-        //     false;
 
-        // if (!canUpdate) return bad(res, 403, "Forbidden");
+        const RESTAURANT_TRANSITIONS = new Set<OrderStatus>([
+            "ACCEPTED_BY_RESTAURANT",
+            "PREPARING",
+            "READY_FOR_PICKUP",
+            "CANCELLED_BY_RESTAURANT",
+            "CANCELLED_NO_COURIER",
+        ]);
+        const COURIER_TRANSITIONS = new Set<OrderStatus>([
+            "PICKED_UP",
+            "ON_THE_WAY",
+            "DELIVERED",
+        ]);
+        const CONSUMER_TRANSITIONS = new Set<OrderStatus>([
+            "CANCELLED_BY_CONSUMER",
+        ]);
 
-        // Simple transition rules (tighten as you wish)
+        let canUpdate = false;
+        if (role === "ADMIN") {
+            canUpdate = true;
+        } else if (RESTAURANT_TRANSITIONS.has(status) && isRestaurantOwner) {
+            canUpdate = true;
+        } else if (COURIER_TRANSITIONS.has(status) && isAssignedCourier) {
+            canUpdate = true;
+        } else if (CONSUMER_TRANSITIONS.has(status) && isConsumer) {
+            canUpdate = true;
+        }
+
+        if (!canUpdate) return bad(res, 403, "Forbidden");
+
+        // Cancellation window: consumer cannot cancel after pickup.
+        if (status === "CANCELLED_BY_CONSUMER") {
+            const tooLateToCancel = new Set<OrderStatus>(["PICKED_UP", "ON_THE_WAY", "DELIVERED"]);
+            if (tooLateToCancel.has(order.status)) {
+                return bad(res, 409, `Cannot cancel once order is ${order.status}`);
+            }
+        }
+
+        // No transitions out of a terminal state.
         const terminal = new Set<OrderStatus>([
             "DELIVERED",
             "CANCELLED_BY_CONSUMER",
@@ -365,10 +405,6 @@ export async function updateOrderStatus(req: Request, res: Response) {
             "CANCELLED_NO_COURIER",
         ]);
         if (terminal.has(order.status)) return bad(res, 409, "Order already finished");
-
-        // Consumer cancellation should go via cancel endpoint
-        if (status === "CANCELLED_BY_CONSUMER" && !isConsumer && role !== "ADMIN")
-            return bad(res, 403, "Only consumer can cancel their order");
 
         order.status = status;
         order.statusHistory.push(pushHistory({ status, by, note: typeof note === "string" ? note : undefined }));
