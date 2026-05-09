@@ -171,7 +171,7 @@ const orderSchema = new Schema<OrderModelDoc>(
     {
         restaurantId: { type: Schema.Types.ObjectId, required: true, ref: "Restaurant", index: true },
         courierId: { type: Schema.Types.ObjectId, required: false, ref: "Driver", default: null, index: true },
-        consumerId: { type: Schema.Types.ObjectId, required: false, ref: "Passenger", default: null, index: true },
+        consumerId: { type: Schema.Types.ObjectId, required: false, ref: "User", default: null, index: true },
         consumerPhone: { type: Number, required: false, default: null },
 
         serviceType: {
@@ -229,6 +229,7 @@ const orderSchema = new Schema<OrderModelDoc>(
 orderSchema.index({ restaurantId: 1, createdAt: -1 });
 orderSchema.index({ consumerId: 1, createdAt: -1 });
 orderSchema.index({ courierId: 1, status: 1 });
+orderSchema.index({ status: 1 });
 
 // Keep isActive in sync (simple rule)
 orderSchema.pre("save", function (next) {

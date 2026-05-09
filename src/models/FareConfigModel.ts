@@ -33,6 +33,8 @@ const FareConfigSchema = new Schema(
     { timestamps: true }
 );
 
+FareConfigSchema.index({ type: 1 }, { unique: true });
+
 export const FareConfigModel = mongoose.model(
     "FareConfig",
     FareConfigSchema
