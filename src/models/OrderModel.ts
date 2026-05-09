@@ -85,8 +85,6 @@ export interface OrderModelDoc extends Document {
 
     cancelReason?: string;
 
-    consumerNote?: string | null;
-
     isActive: boolean;
 }
 
@@ -218,8 +216,6 @@ const orderSchema = new Schema<OrderModelDoc>(
         statusHistory: { type: [statusHistorySchema], required: true, default: [] },
 
         cancelReason: { type: String, required: false, maxlength: 300 },
-
-        consumerNote: { type: String, required: false, default: null, maxlength: 300, trim: true },
 
         isActive: { type: Boolean, required: true, default: true, index: true },
     },

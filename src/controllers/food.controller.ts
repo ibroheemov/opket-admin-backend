@@ -2,21 +2,15 @@ import { Request, Response } from "express";
 import { MenuItemModel } from "../models/MenuItem";
 import { uploadBufferToCloudinary } from "../utils/uploadToCloudinary";
 import { OrderFoodTypes } from "../types/food.types";
-import { OrderModel, OrderStatus } from "../models/OrderModel";
+import { OrderModel } from "../models/OrderModel";
 import { Types } from "mongoose";
 
-const ALL_ORDER_STATUSES: OrderStatus[] = [
-    "PLACED",
-    "ACCEPTED_BY_RESTAURANT",
-    "PREPARING",
-    "READY_FOR_PICKUP",
-    "PICKED_UP",
-    "ON_THE_WAY",
-    "DELIVERED",
-    "CANCELLED_BY_CONSUMER",
-    "CANCELLED_BY_RESTAURANT",
-    "CANCELLED_NO_COURIER",
-];
+type OrderStatus =
+    | "PLACED"
+    | "PREPARING"
+    | "READY_FOR_PICKUP"
+    | "DELIVERED"
+    | "CANCELLED";
 
 /** GET /restaurants/:id/items */
 export const orderFood = async (req: Request, res: Response) => {
@@ -52,7 +46,7 @@ export const getActiveOrders = async (req: Request, res: Response) => {
         const by = toObjectId(userId);
 
         const orders = await OrderModel.find({
-            isActive: true,
+            status: { $nin: ["DELIVERED", "CANCELLED"] },
             consumerId: by,
         })
             .populate({
@@ -109,18 +103,16 @@ export const getOrders = async (req: Request, res: Response) => {
             { $group: { _id: "$status", count: { $sum: 1 } } }
         ]);
 
-        const orderCountByStatus: Record<OrderStatus, number> = ALL_ORDER_STATUSES.reduce(
-            (acc, s) => {
-                acc[s] = 0;
-                return acc;
-            },
-            {} as Record<OrderStatus, number>
-        );
+        const orderCountByStatus = {
+            PLACED: 0,
+            PREPARING: 0,
+            READY_FOR_PICKUP: 0,
+            DELIVERED: 0,
+            CANCELLED: 0,
+        };
 
         statusCounts.forEach((item: { _id: OrderStatus; count: number }) => {
-            if (item._id in orderCountByStatus) {
-                orderCountByStatus[item._id] = item.count;
-            }
+            orderCountByStatus[item._id] = item.count;
         });
 
         return res.json({

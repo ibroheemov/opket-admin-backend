@@ -205,11 +205,6 @@ export async function createPublicOrder(req: Request, res: Response) {
 
         const { orderNumber, orderDate } = await getNextOrderNumber(String(restaurantId));
 
-        const cleanedNote =
-            typeof notes === "string" && notes.trim().length > 0
-                ? notes.trim().slice(0, 300)
-                : null;
-
         const created = await OrderModel.create({
             restaurantId,
             consumerId: null,
@@ -228,8 +223,7 @@ export async function createPublicOrder(req: Request, res: Response) {
             orderNumber,
             orderDate,
             status: "PLACED",
-            statusHistory: [{ status: "PLACED", at: new Date() }],
-            consumerNote: cleanedNote,
+            statusHistory: [{ status: "PLACED", at: new Date(), note: notes || undefined }],
         });
 
         // Emit Socket.io to restaurant owner — same channel + key the driver app already listens on.
