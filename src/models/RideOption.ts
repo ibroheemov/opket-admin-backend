@@ -8,6 +8,8 @@ export interface IRideOption extends Document {
     instant?: boolean;
     charge: number;
     sort_order: number;
+    show_in_passenger_app: boolean;
+    show_in_driver_app: boolean;
     createdAt: Date;
     updatedAt: Date;
     type?: string;
@@ -25,7 +27,6 @@ const RideOptionSchema: Schema = new Schema(
         },
         title_for_passenger: {
             type: String,
-            required: true,
             trim: true,
         },
         option_id: {
@@ -47,6 +48,14 @@ const RideOptionSchema: Schema = new Schema(
         sort_order: {
             type: Number,
             default: 0,
+        },
+        show_in_passenger_app: {
+            type: Boolean,
+            default: true,
+        },
+        show_in_driver_app: {
+            type: Boolean,
+            default: true,
         },
     },
     {
