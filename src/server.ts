@@ -6,7 +6,9 @@ import driverRoutes from './routes/driver.routes';
 import menuRoutes from './routes/menu.routes';
 import foodRoutes from './routes/food.routes';
 import fareRoutes from "./routes/fare.routes";
+import rideSearchConfigRoutes from "./routes/ride.search.config.routes";
 import restaurantsRoutes from './routes/restaurants.routes';
+import carOptionsRoutes from './routes/car-options.routes';
 import publicRoutes from './routes/public.routes';
 import { authenticate } from './middleware/auth.middleware';
 import cors from "cors";
@@ -42,6 +44,8 @@ async function startServer() {
     app.use("/public", publicRoutes);
     app.use("/admin", adminRouter);
     app.use("/fare", fareRoutes);
+    app.use("/ride-search-config", rideSearchConfigRoutes);
+    app.use("/car-options", carOptionsRoutes);
 
 
     // protected example route

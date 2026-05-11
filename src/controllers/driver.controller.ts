@@ -1,6 +1,9 @@
 // src/controllers/driversController.ts
 import { Request, Response } from "express";
+import axios from "axios";
+import { config } from "../config/env";
 import { DriverModel } from "../models/DriverModel";
+import { SettingsModel, SETTINGS_KEYS } from "../models/SettingsModel";
 import { driverStoreRedis } from "../services/driver_redis.service";
 
 export const getDrivers = async (req: Request, res: Response) => {
@@ -10,6 +13,8 @@ export const getDrivers = async (req: Request, res: Response) => {
             pageSize = "10",
             status,
             canReceiveOffers,
+            documentsApproved,
+            documentsRejected,
             q,
             sortBy = "updatedAt",
             sortOrder = "desc",
@@ -25,6 +30,16 @@ export const getDrivers = async (req: Request, res: Response) => {
         if (typeof canReceiveOffers !== "undefined") {
             if (canReceiveOffers === "true") filter.canReceiveOffers = true;
             if (canReceiveOffers === "false") filter.canReceiveOffers = false;
+        }
+
+        if (typeof documentsApproved !== "undefined") {
+            if (documentsApproved === "true") filter.documentsApproved = true;
+            if (documentsApproved === "false") filter.documentsApproved = { $ne: true };
+        }
+
+        if (typeof documentsRejected !== "undefined") {
+            if (documentsRejected === "true") filter.documentsRejected = true;
+            if (documentsRejected === "false") filter.documentsRejected = { $ne: true };
         }
 
         if (q && q.trim()) {
@@ -152,6 +167,108 @@ export const getOnlineDrivers = async (
     } catch (error) {
         console.error("Radius search error:", error);
         return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const approveDriverDocuments = async (req: Request, res: Response) => {
+    try {
+        const driver = await DriverModel.findByIdAndUpdate(
+            req.params.id,
+            { documentsApproved: true, canReceiveOffers: true },
+            { new: true }
+        ).lean();
+
+        if (!driver) return res.status(404).json({ success: false, message: "Driver not found" });
+
+        // Award referral bonus to the referring driver directly (reliable — same DB connection)
+        if (driver.referredBy) {
+            try {
+                const bonusSetting = await SettingsModel.findOne({ key: SETTINGS_KEYS.DRIVER_REFERRAL_BONUS });
+                const bonusAmount = bonusSetting?.value ?? 0;
+
+                if (bonusAmount > 0) {
+                    await DriverModel.findByIdAndUpdate(
+                        driver.referredBy,
+                        { $inc: { referralBonus: bonusAmount, referrals: 1 } }
+                    );
+                    console.log(`Referral bonus of ${bonusAmount} awarded to driver ${driver.referredBy}`);
+                } else {
+                    console.warn("DRIVER_REFERRAL_BONUS setting is not configured or is 0; skipping referral bonus.");
+                }
+            } catch (bonusErr) {
+                console.error("Failed to award referral bonus:", bonusErr);
+            }
+        }
+
+        // Proxy to main backend for FCM notification only
+        try {
+            await axios.post(`${config.backendUrl}/driver/${req.params.id}/approve-documents`);
+        } catch (fcmErr) {
+            console.error("FCM notification proxy error (referral bonus already handled):", fcmErr);
+        }
+
+        return res.json({ success: true, driver });
+    } catch (err: any) {
+        console.error("approveDriverDocuments error:", err);
+        return res.status(500).json({ success: false, message: err?.message ?? "Server error" });
+    }
+};
+
+export const rejectDriverDocuments = async (req: Request, res: Response) => {
+    try {
+        const { comment } = req.body as { comment?: string };
+
+        const driver = await DriverModel.findByIdAndUpdate(
+            req.params.id,
+            {
+                documentsApproved: false,
+                documentsRejected: true,
+                canReceiveOffers: false,
+                rejectionComment: comment ?? "",
+            },
+            { new: true }
+        ).lean();
+
+        if (!driver) return res.status(404).json({ success: false, message: "Driver not found" });
+
+        try {
+            await axios.post(`${config.backendUrl}/driver/${req.params.id}/reject-documents`, { comment: comment ?? "" });
+        } catch (fcmErr) {
+            console.error("FCM rejection proxy error:", fcmErr);
+        }
+
+        return res.json({ success: true, driver });
+    } catch (err: any) {
+        console.error("rejectDriverDocuments error:", err);
+        return res.status(500).json({ success: false, message: err?.message ?? "Server error" });
+    }
+};
+
+export const resetDocumentStatus = async (req: Request, res: Response) => {
+    try {
+        const driver = await DriverModel.findByIdAndUpdate(
+            req.params.id,
+            {
+                documentsApproved: false,
+                documentsRejected: false,
+                rejectionComment: "",
+                canReceiveOffers: false,
+            },
+            { new: true }
+        ).lean();
+
+        if (!driver) return res.status(404).json({ success: false, message: "Driver not found" });
+
+        try {
+            await axios.post(`${config.backendUrl}/driver/${req.params.id}/reset-document-status`);
+        } catch (fcmErr) {
+            console.error("FCM reset proxy error:", fcmErr);
+        }
+
+        return res.json({ success: true, driver });
+    } catch (err: any) {
+        console.error("resetDocumentStatus error:", err);
+        return res.status(500).json({ success: false, message: err?.message ?? "Server error" });
     }
 };
 

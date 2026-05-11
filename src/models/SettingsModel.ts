@@ -1,0 +1,24 @@
+import mongoose, { Schema } from "mongoose";
+
+export const SETTINGS_KEYS = {
+    COMMISSION: "commission",
+    DRIVER_REFERRAL_BONUS: "driver_referral_bonus",
+    PASSENGER_REFERRAL_BONUS: "passenger_referral_bonus",
+} as const;
+
+export type SettingsKey = typeof SETTINGS_KEYS[keyof typeof SETTINGS_KEYS];
+
+const SettingsSchema = new Schema(
+    {
+        key: { type: String, required: true, unique: true },
+        value: { type: Number, required: true },
+    },
+    { timestamps: true }
+);
+
+export const SettingsModel = mongoose.model("Settings", SettingsSchema);
+
+// Drop stale index left from old schema definition (SettingsSchema.index({ type: 1 }, { unique: true }))
+SettingsModel.collection.dropIndex("type_1").catch(() => {
+    // Ignore — index doesn't exist or already dropped
+});

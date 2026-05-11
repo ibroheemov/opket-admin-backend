@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createRestaurantOwner, getRestaurantOwners } from "../controllers/admin.controller";
+import { createRestaurantOwner, getRestaurantOwners, getReferralBonusSettings, updateReferralBonusSettings, getPassengerReferralBonusSettings, updatePassengerReferralBonusSettings } from "../controllers/admin.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireRole } from "../middleware/requireRole";
 import { upload } from "../middleware/upload";
@@ -20,3 +20,9 @@ adminRouter.patch("/restaurant-types/:id", requireAuth, upload.single("image"), 
 adminRouter.delete("/restaurant-types/:id", requireAuth, deleteRestaurantType);
 
 adminRouter.get("/orders/stats", getOrderStats);
+
+adminRouter.get("/settings/referral-bonus", getReferralBonusSettings);
+adminRouter.put("/settings/referral-bonus", updateReferralBonusSettings);
+
+adminRouter.get("/settings/passenger-referral-bonus", getPassengerReferralBonusSettings);
+adminRouter.put("/settings/passenger-referral-bonus", updatePassengerReferralBonusSettings);

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { UserModel } from "../models/UserModel";
 import { RestaurantModel } from "../models/Restaurant";
+import { SettingsModel, SETTINGS_KEYS } from "../models/SettingsModel";
 
 // type Request = Request & {
 //     user?: { id: string; role?: "CONSUMER" | "COURIER" | "RESTAURANT_OWNER" | "ADMIN" };
@@ -212,3 +213,58 @@ export async function getRestaurantOwners(req: Request, res: Response) {
         return bad(res, 500, err?.message ?? "Server error");
     }
 }
+export const getReferralBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const setting = await SettingsModel.findOne({ key: SETTINGS_KEYS.DRIVER_REFERRAL_BONUS });
+        return res.json({ driverReferralBonus: setting?.value ?? 0 });
+    } catch (err) {
+        console.error("getReferralBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updateReferralBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const { amount } = req.body;
+        if (typeof amount !== "number" || amount < 0) {
+            return res.status(400).json({ error: "amount must be a non-negative number" });
+        }
+        const setting = await SettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEYS.DRIVER_REFERRAL_BONUS },
+            { value: amount },
+            { upsert: true, new: true }
+        );
+        return res.json({ success: true, driverReferralBonus: setting.value });
+    } catch (err) {
+        console.error("updateReferralBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const getPassengerReferralBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const setting = await SettingsModel.findOne({ key: SETTINGS_KEYS.PASSENGER_REFERRAL_BONUS });
+        return res.json({ passengerReferralBonus: setting?.value ?? 0 });
+    } catch (err) {
+        console.error("getPassengerReferralBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updatePassengerReferralBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const { amount } = req.body;
+        if (typeof amount !== "number" || amount < 0) {
+            return res.status(400).json({ error: "amount must be a non-negative number" });
+        }
+        const setting = await SettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEYS.PASSENGER_REFERRAL_BONUS },
+            { value: amount },
+            { upsert: true, new: true }
+        );
+        return res.json({ success: true, passengerReferralBonus: setting.value });
+    } catch (err) {
+        console.error("updatePassengerReferralBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
