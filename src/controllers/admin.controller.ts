@@ -268,3 +268,61 @@ export const updatePassengerReferralBonusSettings = async (req: Request, res: Re
         return res.status(500).json({ error: "Server error" });
     }
 };
+
+/**
+ * GET /admin/settings/referral-zone
+ * Returns the geographical area in which a referral bonus is paid out.
+ * radiusKm = 0 disables the geo gate (any verified location approves).
+ */
+export const getReferralZoneSettings = async (_req: Request, res: Response) => {
+    try {
+        const [latDoc, lngDoc, radiusDoc] = await Promise.all([
+            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_LAT }),
+            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_LNG }),
+            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_RADIUS_KM }),
+        ]);
+        return res.json({
+            lat: latDoc?.value ?? 0,
+            lng: lngDoc?.value ?? 0,
+            radiusKm: radiusDoc?.value ?? 0,
+        });
+    } catch (err) {
+        console.error("getReferralZoneSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updateReferralZoneSettings = async (req: Request, res: Response) => {
+    try {
+        const { lat, lng, radiusKm } = req.body ?? {};
+        if (typeof lat !== "number" || lat < -90 || lat > 90)
+            return res.status(400).json({ error: "`lat` must be a number between -90 and 90" });
+        if (typeof lng !== "number" || lng < -180 || lng > 180)
+            return res.status(400).json({ error: "`lng` must be a number between -180 and 180" });
+        if (typeof radiusKm !== "number" || radiusKm < 0)
+            return res.status(400).json({ error: "`radiusKm` must be a non-negative number" });
+
+        await Promise.all([
+            SettingsModel.findOneAndUpdate(
+                { key: SETTINGS_KEYS.REFERRAL_ZONE_LAT },
+                { value: lat },
+                { upsert: true, new: true }
+            ),
+            SettingsModel.findOneAndUpdate(
+                { key: SETTINGS_KEYS.REFERRAL_ZONE_LNG },
+                { value: lng },
+                { upsert: true, new: true }
+            ),
+            SettingsModel.findOneAndUpdate(
+                { key: SETTINGS_KEYS.REFERRAL_ZONE_RADIUS_KM },
+                { value: radiusKm },
+                { upsert: true, new: true }
+            ),
+        ]);
+
+        return res.json({ success: true, lat, lng, radiusKm });
+    } catch (err) {
+        console.error("updateReferralZoneSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
