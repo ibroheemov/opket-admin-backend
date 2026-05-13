@@ -114,7 +114,7 @@ export async function createFoodOrder(req: Request, res: Response) {
             if (pickupLat === null || pickupLon === null) {
                 return bad(res, 409, "Restaurant has no pickup location configured");
             }
-
+            console.log("USER ID:", req.user.id);
             const passenger = await PassengerModel.findById(req.user.id).select("phone");
 
             if (!passenger) {
