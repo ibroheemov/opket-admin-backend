@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import axios from "axios";
 import { config } from "../config/env";
 import { DriverModel } from "../models/DriverModel";
-import { SettingsModel, SETTINGS_KEYS } from "../models/SettingsModel";
 import { driverStoreRedis } from "../services/driver_redis.service";
 
 export const getDrivers = async (req: Request, res: Response) => {
@@ -180,31 +179,11 @@ export const approveDriverDocuments = async (req: Request, res: Response) => {
 
         if (!driver) return res.status(404).json({ success: false, message: "Driver not found" });
 
-        // Award referral bonus to the referring driver directly (reliable — same DB connection)
-        if (driver.referredBy) {
-            try {
-                const bonusSetting = await SettingsModel.findOne({ key: SETTINGS_KEYS.DRIVER_REFERRAL_BONUS });
-                const bonusAmount = bonusSetting?.value ?? 0;
-
-                if (bonusAmount > 0) {
-                    await DriverModel.findByIdAndUpdate(
-                        driver.referredBy,
-                        { $inc: { referralBonus: bonusAmount, referrals: 1 } }
-                    );
-                    console.log(`Referral bonus of ${bonusAmount} awarded to driver ${driver.referredBy}`);
-                } else {
-                    console.warn("DRIVER_REFERRAL_BONUS setting is not configured or is 0; skipping referral bonus.");
-                }
-            } catch (bonusErr) {
-                console.error("Failed to award referral bonus:", bonusErr);
-            }
-        }
-
-        // Proxy to main backend for FCM notification only
+        // Proxy to main backend for FCM notification
         try {
             await axios.post(`${config.backendUrl}/driver/${req.params.id}/approve-documents`);
         } catch (fcmErr) {
-            console.error("FCM notification proxy error (referral bonus already handled):", fcmErr);
+            console.error("FCM notification proxy error:", fcmErr);
         }
 
         return res.json({ success: true, driver });

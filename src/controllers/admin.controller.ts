@@ -274,6 +274,34 @@ export const updatePassengerReferralBonusSettings = async (req: Request, res: Re
  * Returns the geographical area in which a referral bonus is paid out.
  * radiusKm = 0 disables the geo gate (any verified location approves).
  */
+export const getCashbackSettings = async (_req: Request, res: Response) => {
+    try {
+        const setting = await SettingsModel.findOne({ key: SETTINGS_KEYS.CASHBACK });
+        return res.json({ cashback: setting?.value ?? 0 });
+    } catch (err) {
+        console.error("getCashbackSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updateCashbackSettings = async (req: Request, res: Response) => {
+    try {
+        const { amount } = req.body;
+        if (typeof amount !== "number" || amount < 0) {
+            return res.status(400).json({ error: "amount must be a non-negative number" });
+        }
+        const setting = await SettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEYS.CASHBACK },
+            { value: amount },
+            { upsert: true, new: true }
+        );
+        return res.json({ success: true, cashback: setting.value });
+    } catch (err) {
+        console.error("updateCashbackSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
 export const getReferralZoneSettings = async (_req: Request, res: Response) => {
     try {
         const [latDoc, lngDoc, radiusDoc] = await Promise.all([

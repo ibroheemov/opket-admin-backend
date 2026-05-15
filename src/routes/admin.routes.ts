@@ -8,7 +8,10 @@ import {
     updatePassengerReferralBonusSettings,
     getReferralZoneSettings,
     updateReferralZoneSettings,
+    getCashbackSettings,
+    updateCashbackSettings,
 } from "../controllers/admin.controller";
+import { listReferrals, approveReferral, rejectReferral } from "../controllers/referral.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireRole } from "../middleware/requireRole";
 import { upload } from "../middleware/upload";
@@ -22,6 +25,7 @@ import {
     deleteCancelReason,
     resetCancelReasonCount,
 } from "../controllers/cancellationReason.controller";
+import { listPassengers, updatePassenger } from "../controllers/passenger.controller";
 
 export const adminRouter = Router();
 
@@ -38,6 +42,9 @@ adminRouter.delete("/restaurant-types/:id", requireAuth, deleteRestaurantType);
 
 adminRouter.get("/orders/stats", getOrderStats);
 
+adminRouter.get("/settings/cashback", getCashbackSettings);
+adminRouter.put("/settings/cashback", updateCashbackSettings);
+
 adminRouter.get("/settings/referral-bonus", getReferralBonusSettings);
 adminRouter.put("/settings/referral-bonus", updateReferralBonusSettings);
 
@@ -49,6 +56,13 @@ adminRouter.put("/settings/referral-zone", updateReferralZoneSettings);
 
 adminRouter.get("/settings/discount-config", getDiscountConfig);
 adminRouter.put("/settings/discount-config", updateDiscountConfig);
+
+adminRouter.get("/referrals", listReferrals);
+adminRouter.post("/referrals/:id/approve", approveReferral);
+adminRouter.post("/referrals/:id/reject", rejectReferral);
+
+adminRouter.get("/passengers", listPassengers);
+adminRouter.patch("/passengers/:id", updatePassenger);
 
 adminRouter.get("/cancel-reasons", listCancelReasons);
 adminRouter.post("/cancel-reasons", createCancelReason);
