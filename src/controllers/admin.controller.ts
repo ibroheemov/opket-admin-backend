@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import { UserModel } from "../models/UserModel";
 import { RestaurantModel } from "../models/Restaurant";
 import { SettingsModel, SETTINGS_KEYS } from "../models/SettingsModel";
+import { getAppVersionConfig, AppVersionConfigModel } from "../models/AppVersionConfigModel";
 
 // type Request = Request & {
 //     user?: { id: string; role?: "CONSUMER" | "COURIER" | "RESTAURANT_OWNER" | "ADMIN" };
@@ -269,6 +270,34 @@ export const updatePassengerReferralBonusSettings = async (req: Request, res: Re
     }
 };
 
+export const getRegistrationBonusSettings = async (_req: Request, res: Response) => {
+    try {
+        const setting = await SettingsModel.findOne({ key: SETTINGS_KEYS.DRIVER_REGISTRATION_BONUS });
+        return res.json({ driverRegistrationBonus: setting?.value ?? 0 });
+    } catch (err) {
+        console.error("getRegistrationBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updateRegistrationBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const { amount } = req.body;
+        if (typeof amount !== "number" || amount < 0) {
+            return res.status(400).json({ error: "amount must be a non-negative number" });
+        }
+        const setting = await SettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEYS.DRIVER_REGISTRATION_BONUS },
+            { value: amount },
+            { upsert: true, new: true }
+        );
+        return res.json({ success: true, driverRegistrationBonus: setting.value });
+    } catch (err) {
+        console.error("updateRegistrationBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
 /**
  * GET /admin/settings/referral-zone
  * Returns the geographical area in which a referral bonus is paid out.
@@ -298,6 +327,34 @@ export const updateCashbackSettings = async (req: Request, res: Response) => {
         return res.json({ success: true, cashback: setting.value });
     } catch (err) {
         console.error("updateCashbackSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const getPassengerToPassengerReferralBonusSettings = async (_req: Request, res: Response) => {
+    try {
+        const setting = await SettingsModel.findOne({ key: SETTINGS_KEYS.PASSENGER_TO_PASSENGER_REFERRAL_BONUS });
+        return res.json({ passengerToPassengerReferralBonus: setting?.value ?? 0 });
+    } catch (err) {
+        console.error("getPassengerToPassengerReferralBonusSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const updatePassengerToPassengerReferralBonusSettings = async (req: Request, res: Response) => {
+    try {
+        const { amount } = req.body;
+        if (typeof amount !== "number" || amount < 0) {
+            return res.status(400).json({ error: "amount must be a non-negative number" });
+        }
+        const setting = await SettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEYS.PASSENGER_TO_PASSENGER_REFERRAL_BONUS },
+            { value: amount },
+            { upsert: true, new: true }
+        );
+        return res.json({ success: true, passengerToPassengerReferralBonus: setting.value });
+    } catch (err) {
+        console.error("updatePassengerToPassengerReferralBonusSettings error:", err);
         return res.status(500).json({ error: "Server error" });
     }
 };
@@ -351,6 +408,46 @@ export const updateReferralZoneSettings = async (req: Request, res: Response) =>
         return res.json({ success: true, lat, lng, radiusKm });
     } catch (err) {
         console.error("updateReferralZoneSettings error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+export const getAppVersionConfigHandler = async (_req: Request, res: Response) => {
+    try {
+        const doc = await getAppVersionConfig();
+        return res.json({
+            passenger_min_version: doc.passenger_min_version,
+            passenger_latest_version: doc.passenger_latest_version,
+            driver_min_version: doc.driver_min_version,
+            driver_latest_version: doc.driver_latest_version,
+        });
+    } catch (err) {
+        console.error("getAppVersionConfig error:", err);
+        return res.status(500).json({ error: "Server error" });
+    }
+};
+
+const VERSION_RE = /^\d+\.\d+\.\d+$/;
+
+export const updateAppVersionConfigHandler = async (req: Request, res: Response) => {
+    try {
+        const { passenger_min_version, passenger_latest_version, driver_min_version, driver_latest_version } = req.body ?? {};
+
+        for (const [field, val] of Object.entries({ passenger_min_version, passenger_latest_version, driver_min_version, driver_latest_version })) {
+            if (typeof val !== "string" || !VERSION_RE.test(val)) {
+                return res.status(400).json({ error: `${field} must be a semver string like "1.2.3"` });
+            }
+        }
+
+        const doc = await AppVersionConfigModel.findOneAndUpdate(
+            {},
+            { passenger_min_version, passenger_latest_version, driver_min_version, driver_latest_version },
+            { upsert: true, new: true }
+        );
+
+        return res.json({ success: true, data: doc });
+    } catch (err) {
+        console.error("updateAppVersionConfig error:", err);
         return res.status(500).json({ error: "Server error" });
     }
 };

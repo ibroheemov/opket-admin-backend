@@ -24,6 +24,8 @@ export const config = {
     REDIS_PASSWORD: process.env.REDIS_PASSWORD!,
     REDIS_PORT: process.env.REDIS_PORT!,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY!,
+    ESKIZ_EMAIL: process.env.ESKIZ_EMAIL!,
+    ESKIZ_PASSWORD: process.env.ESKIZ_PASSWORD!,
 };
 
 

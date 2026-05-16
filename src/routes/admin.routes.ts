@@ -6,10 +6,16 @@ import {
     updateReferralBonusSettings,
     getPassengerReferralBonusSettings,
     updatePassengerReferralBonusSettings,
+    getPassengerToPassengerReferralBonusSettings,
+    updatePassengerToPassengerReferralBonusSettings,
     getReferralZoneSettings,
     updateReferralZoneSettings,
     getCashbackSettings,
     updateCashbackSettings,
+    getAppVersionConfigHandler,
+    updateAppVersionConfigHandler,
+    getRegistrationBonusSettings,
+    updateRegistrationBonusSettings,
 } from "../controllers/admin.controller";
 import { listReferrals, approveReferral, rejectReferral } from "../controllers/referral.controller";
 import { requireAuth } from "../middleware/requireAuth";
@@ -45,17 +51,26 @@ adminRouter.get("/orders/stats", getOrderStats);
 adminRouter.get("/settings/cashback", getCashbackSettings);
 adminRouter.put("/settings/cashback", updateCashbackSettings);
 
+adminRouter.get("/settings/registration-bonus", getRegistrationBonusSettings);
+adminRouter.put("/settings/registration-bonus", updateRegistrationBonusSettings);
+
 adminRouter.get("/settings/referral-bonus", getReferralBonusSettings);
 adminRouter.put("/settings/referral-bonus", updateReferralBonusSettings);
 
 adminRouter.get("/settings/passenger-referral-bonus", getPassengerReferralBonusSettings);
 adminRouter.put("/settings/passenger-referral-bonus", updatePassengerReferralBonusSettings);
 
+adminRouter.get("/settings/passenger-to-passenger-referral-bonus", getPassengerToPassengerReferralBonusSettings);
+adminRouter.put("/settings/passenger-to-passenger-referral-bonus", updatePassengerToPassengerReferralBonusSettings);
+
 adminRouter.get("/settings/referral-zone", getReferralZoneSettings);
 adminRouter.put("/settings/referral-zone", updateReferralZoneSettings);
 
 adminRouter.get("/settings/discount-config", getDiscountConfig);
 adminRouter.put("/settings/discount-config", updateDiscountConfig);
+
+adminRouter.get("/settings/app-version-config", getAppVersionConfigHandler);
+adminRouter.put("/settings/app-version-config", updateAppVersionConfigHandler);
 
 adminRouter.get("/referrals", listReferrals);
 adminRouter.post("/referrals/:id/approve", approveReferral);

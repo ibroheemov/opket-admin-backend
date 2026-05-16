@@ -68,6 +68,7 @@ export interface IDriverDocument extends Document {
     canReceiveOffers: boolean;
     blocked?: boolean;
     hasPremiumCar: boolean;
+    notificationEnabled?: boolean;
 
     events: {
         event: string;
@@ -149,6 +150,7 @@ const DriverSchema = new Schema<IDriverDocument>(
         canReceiveOffers: { type: Boolean, default: true },
         blocked: { type: Boolean, default: false },
         hasPremiumCar: { type: Boolean, default: false },
+        notificationEnabled: { type: Boolean, default: false },
 
         events: {
             type: [

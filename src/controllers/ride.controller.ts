@@ -20,6 +20,7 @@ export const getRides = async (req: AuthRequest, res: Response) => {
             from,
             to,
             q,
+            driverQ,
         } = req.query as Record<string, string>;
 
         const pageNum = Math.max(parseInt(page, 10) || 1, 1);
@@ -119,6 +120,22 @@ export const getRides = async (req: AuthRequest, res: Response) => {
                     preserveNullAndEmptyArrays: true,
                 },
             },
+
+            ...(driverQ && driverQ.trim()
+                ? [
+                      {
+                          $match: {
+                              $or: [
+                                  { "driver.carNumber": new RegExp(driverQ.trim(), "i") },
+                                  { "driver.name": new RegExp(driverQ.trim(), "i") },
+                                  { "driver.phone": new RegExp(driverQ.trim(), "i") },
+                                  { "driver.carModel": new RegExp(driverQ.trim(), "i") },
+                                  { "driver.carColor": new RegExp(driverQ.trim(), "i") },
+                              ],
+                          },
+                      },
+                  ]
+                : []),
 
             // -------------------------
             // 📜 STATUS HISTORY DRIVER LOOKUP

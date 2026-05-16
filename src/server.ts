@@ -1,4 +1,5 @@
 import express from 'express';
+import { initFirebase } from './services/firebase.service';
 import authRoutes from './routes/auth.routes';
 import rideOptionsRoutes from './routes/options.routes';
 import ridesRoutes from './routes/ride.routes';
@@ -16,6 +17,7 @@ import { config } from './config/env';
 import { connectDB } from './utils/db';
 import bodyParser from "body-parser";
 import { adminRouter } from './routes/admin.routes';
+import messagingRoutes from './routes/messaging.routes';
 import { connectRedis } from './utils/redisClient';
 import http from "http";
 import { initSocketServer } from './gateway/socket';
@@ -28,6 +30,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 async function startServer() {
+    initFirebase();
     await connectDB();
     await connectRedis();
     const server = http.createServer(app);
@@ -46,6 +49,7 @@ async function startServer() {
     app.use("/fare", fareRoutes);
     app.use("/ride-search-config", rideSearchConfigRoutes);
     app.use("/car-options", carOptionsRoutes);
+    app.use("/messaging", messagingRoutes);
 
 
     // protected example route
