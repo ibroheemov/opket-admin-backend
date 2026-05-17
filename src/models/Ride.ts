@@ -31,6 +31,8 @@ export interface IRide extends Document {
     dropoff?: { lat: number; lon: number; address?: string };
     status: RideStatus;
     statusHistory: IRideStatusEvent[];
+    cancellationReason?: string;
+    cancellationReasonKey?: string;
     fare: number;
     pauseSeconds?: number;
     fareEstimate?: number;
@@ -89,6 +91,8 @@ const rideSchema = new Schema<IRide>({
         ],
         default: [],
     },
+    cancellationReason: { type: String },
+    cancellationReasonKey: { type: String },
     type: {
         type: String,
         default: "app",
