@@ -69,6 +69,8 @@ export const listReferrals = async (req: Request, res: Response) => {
                 status: r.status,
                 referredUserType: r.referredUserType,
                 bonusAmount: r.bonusAmount,
+                bonusCredited: (r as any).bonusCredited ?? false,
+                autoVerified: (r as any).autoVerified ?? false,
                 referredLocation: (r as any).referredLocation ?? null,
                 createdAt: r.createdAt,
                 verifiedAt: r.verifiedAt,
@@ -88,12 +90,21 @@ export const listReferrals = async (req: Request, res: Response) => {
 };
 
 // POST /admin/referrals/:id/approve
+//
+// Manual override. Referrals are normally decided automatically by the
+// zone-radius check the moment the referred user's location arrives, but the
+// admin can still force-approve from the approvals page (e.g. to overturn an
+// auto-reject). Idempotent: the referrer is credited at most once per record,
+// guarded by the `bonusCredited` flag.
 export const approveReferral = async (req: Request, res: Response) => {
     try {
         const record = await ReferralRecordModel.findById(req.params.id);
         if (!record) return bad(res, 404, "Referral record not found");
-        if (record.status !== "pending_location")
-            return bad(res, 400, "Only pending referrals can be approved");
+
+        // Already approved — nothing to do, report the credited amount.
+        if (record.status === "approved") {
+            return res.json({ ok: true, bonusAmount: record.bonusAmount ?? 0 });
+        }
 
         const bonusKey =
             record.referredUserType === "driver"
@@ -103,16 +114,33 @@ export const approveReferral = async (req: Request, res: Response) => {
         const bonusSetting = await SettingsModel.findOne({ key: bonusKey });
         const bonusAmount = bonusSetting?.value ?? 0;
 
+        // Flip status to approved (manual override → autoVerified = false).
         await ReferralRecordModel.findByIdAndUpdate(record._id, {
             status: "approved",
-            bonusAmount,
+            autoVerified: false,
             verifiedAt: new Date(),
         });
 
+        // Credit the referrer exactly once: atomically claim the credit by
+        // flipping bonusCredited false → true. Only the claiming request
+        // increments the driver's balance.
         if (bonusAmount > 0) {
-            await DriverModel.findByIdAndUpdate(record.referrerId, {
-                $inc: { referralBonus: bonusAmount, referrals: 1 },
-            });
+            const claimed = await ReferralRecordModel.findOneAndUpdate(
+                { _id: record._id, bonusCredited: false },
+                { bonusCredited: true, bonusAmount },
+                { new: true }
+            );
+            if (claimed) {
+                await DriverModel.findByIdAndUpdate(record.referrerId, {
+                    $inc: { referralBonus: bonusAmount, referrals: 1 },
+                });
+            }
+        } else {
+            // Bonus disabled — keep the recorded amount accurate.
+            await ReferralRecordModel.findOneAndUpdate(
+                { _id: record._id, bonusCredited: false },
+                { bonusAmount: 0 }
+            );
         }
 
         return res.json({ ok: true, bonusAmount });
@@ -122,17 +150,39 @@ export const approveReferral = async (req: Request, res: Response) => {
 };
 
 // POST /admin/referrals/:id/reject
+//
+// Manual override. Force-rejects a referral. If a bonus was already credited
+// (auto-approved earlier, or approved by mistake), it is reversed off the
+// referrer driver. Idempotent and safe to call repeatedly.
 export const rejectReferral = async (req: Request, res: Response) => {
     try {
         const record = await ReferralRecordModel.findById(req.params.id);
         if (!record) return bad(res, 404, "Referral record not found");
-        if (record.status !== "pending_location")
-            return bad(res, 400, "Only pending referrals can be rejected");
+
+        if (record.status === "rejected") {
+            return res.json({ ok: true });
+        }
+
+        // Atomically claim the reversal: only the request that flips
+        // bonusCredited true → false owes the driver a debit.
+        const reversed = await ReferralRecordModel.findOneAndUpdate(
+            { _id: record._id, bonusCredited: true },
+            { bonusCredited: false },
+            { new: false } // return the pre-update doc to read its bonusAmount
+        );
 
         await ReferralRecordModel.findByIdAndUpdate(record._id, {
             status: "rejected",
+            autoVerified: false,
             verifiedAt: new Date(),
         });
+
+        const reversedAmount = reversed?.bonusAmount ?? 0;
+        if (reversed && reversedAmount > 0) {
+            await DriverModel.findByIdAndUpdate(record.referrerId, {
+                $inc: { referralBonus: -reversedAmount, referrals: -1 },
+            });
+        }
 
         return res.json({ ok: true });
     } catch (err: any) {
