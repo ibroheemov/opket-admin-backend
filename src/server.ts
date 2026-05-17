@@ -18,6 +18,7 @@ import { connectDB } from './utils/db';
 import bodyParser from "body-parser";
 import { adminRouter } from './routes/admin.routes';
 import messagingRoutes from './routes/messaging.routes';
+import workingAreaRoutes from './routes/working_area.routes';
 import { connectRedis } from './utils/redisClient';
 import http from "http";
 import { initSocketServer } from './gateway/socket';
@@ -50,6 +51,7 @@ async function startServer() {
     app.use("/ride-search-config", rideSearchConfigRoutes);
     app.use("/car-options", carOptionsRoutes);
     app.use("/messaging", messagingRoutes);
+    app.use("/working-areas", workingAreaRoutes);
 
 
     // protected example route
