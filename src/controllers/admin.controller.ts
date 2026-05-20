@@ -5,6 +5,7 @@ import { UserModel } from "../models/UserModel";
 import { RestaurantModel } from "../models/Restaurant";
 import { SettingsModel, SETTINGS_KEYS } from "../models/SettingsModel";
 import { getAppVersionConfig, AppVersionConfigModel } from "../models/AppVersionConfigModel";
+import { ReferralZoneModel } from "../models/ReferralZoneModel";
 
 // type Request = Request & {
 //     user?: { id: string; role?: "CONSUMER" | "COURIER" | "RESTAURANT_OWNER" | "ADMIN" };
@@ -361,16 +362,8 @@ export const updatePassengerToPassengerReferralBonusSettings = async (req: Reque
 
 export const getReferralZoneSettings = async (_req: Request, res: Response) => {
     try {
-        const [latDoc, lngDoc, radiusDoc] = await Promise.all([
-            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_LAT }),
-            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_LNG }),
-            SettingsModel.findOne({ key: SETTINGS_KEYS.REFERRAL_ZONE_RADIUS_KM }),
-        ]);
-        return res.json({
-            lat: latDoc?.value ?? 0,
-            lng: lngDoc?.value ?? 0,
-            radiusKm: radiusDoc?.value ?? 0,
-        });
+        const doc = await ReferralZoneModel.findOne().lean();
+        return res.json({ polygon: doc?.polygon ?? [] });
     } catch (err) {
         console.error("getReferralZoneSettings error:", err);
         return res.status(500).json({ error: "Server error" });
@@ -379,33 +372,21 @@ export const getReferralZoneSettings = async (_req: Request, res: Response) => {
 
 export const updateReferralZoneSettings = async (req: Request, res: Response) => {
     try {
-        const { lat, lng, radiusKm } = req.body ?? {};
-        if (typeof lat !== "number" || lat < -90 || lat > 90)
-            return res.status(400).json({ error: "`lat` must be a number between -90 and 90" });
-        if (typeof lng !== "number" || lng < -180 || lng > 180)
-            return res.status(400).json({ error: "`lng` must be a number between -180 and 180" });
-        if (typeof radiusKm !== "number" || radiusKm < 0)
-            return res.status(400).json({ error: "`radiusKm` must be a non-negative number" });
+        const { polygon } = req.body ?? {};
+        if (!Array.isArray(polygon))
+            return res.status(400).json({ error: "`polygon` must be an array of {lat, lng} points" });
+        for (const p of polygon) {
+            if (typeof p?.lat !== "number" || typeof p?.lng !== "number")
+                return res.status(400).json({ error: "Each polygon point must have numeric lat and lng" });
+        }
 
-        await Promise.all([
-            SettingsModel.findOneAndUpdate(
-                { key: SETTINGS_KEYS.REFERRAL_ZONE_LAT },
-                { value: lat },
-                { upsert: true, new: true }
-            ),
-            SettingsModel.findOneAndUpdate(
-                { key: SETTINGS_KEYS.REFERRAL_ZONE_LNG },
-                { value: lng },
-                { upsert: true, new: true }
-            ),
-            SettingsModel.findOneAndUpdate(
-                { key: SETTINGS_KEYS.REFERRAL_ZONE_RADIUS_KM },
-                { value: radiusKm },
-                { upsert: true, new: true }
-            ),
-        ]);
+        await ReferralZoneModel.findOneAndUpdate(
+            {},
+            { polygon },
+            { upsert: true, new: true }
+        );
 
-        return res.json({ success: true, lat, lng, radiusKm });
+        return res.json({ success: true, polygon });
     } catch (err) {
         console.error("updateReferralZoneSettings error:", err);
         return res.status(500).json({ error: "Server error" });
